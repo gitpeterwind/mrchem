@@ -46,7 +46,7 @@ void mpi::initialize(int argc, char **argv) {
 
     // divide the world into groups
     // each group has its own group communicator definition
- 
+
     // split world into groups that can share memory
     MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comm_share);
 
@@ -73,7 +73,7 @@ void mpi::initialize(int argc, char **argv) {
     MPI_Comm_size(comm_orb, &orb_size);
 #endif
 }
-  
+
 void mpi::finalize() {
 #ifdef HAVE_MPI
     MPI_Finalize();
@@ -217,6 +217,7 @@ void mpi::recv_orbital(Orbital &orb, int src, int tag) {
 #endif
 }
 
+/** @brief Add all mpi densities in rank zero density */
 void mpi::reduce_density(Density &rho, MPI_Comm comm) {
 #ifdef HAVE_MPI
     int comm_size, comm_rank;
@@ -230,24 +231,15 @@ void mpi::reduce_density(Density &rho, MPI_Comm comm) {
 
     Timer timer;
     if (comm_rank == 0) {
-        Density *rho_0 = new Density;
-        rho_0->alloc(NUMBER::Real);
-        mrcpp::copy_grid(rho_0->real(), rho.real());
-        mrcpp::copy_func(rho_0->real(), rho.real());
-        rho.real().clear();
-
-        mrcpp::FunctionTreeVector<3> rho_vec;
-        rho_vec.push_back(std::make_tuple(1.0, &rho_0->real()));
-        for (int src = 1; src < comm_size; src++) {
-            Density *rho_i = new Density;
+	Density *rho_i = new Density;
+	rho_i->alloc(NUMBER::Real);
+ 	for (int src = 1; src < comm_size; src++) {
             int tag = 3333+src;
-            rho_i->alloc(NUMBER::Real);
-            mrcpp::recv_tree(rho_i->real(), src, tag, comm);
-            if (rho_i->real().getSquareNorm() > 0.0) rho_vec.push_back(std::make_tuple(1.0, &rho_i->real()));
+            mrcpp::recv_tree(rho_i->real(), src, tag, comm); // overwrite old rho_i
+	    mrcpp::refine_grid(rho.real(), rho_i->real()); // merge grids
+	    rho.real().add(1.0, rho_i->real()); // add in place using rho.real grid
         }
-        mrcpp::build_grid(rho.real(), rho_vec);
-        mrcpp::add(-1.0, rho.real(), rho_vec, 0);
-        mrcpp::clear(rho_vec, true);
+	delete rho_i;
     } else {
         int tag = 3333+comm_rank;
         mrcpp::send_tree(rho.real(), 0, tag, comm);
