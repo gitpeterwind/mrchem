@@ -231,13 +231,13 @@ void mpi::reduce_density(Density &rho, MPI_Comm comm) {
 
     Timer timer;
     if (comm_rank == 0) {
-	Density *rho_i = new Density;
-	rho_i->alloc(NUMBER::Real);
- 	for (int src = 1; src < comm_size; src++) {
+        Density *rho_i = new Density;
+        rho_i->alloc(NUMBER::Real);
+        for (int src = 1; src < comm_size; src++) {
             int tag = 3333+src;
             mrcpp::recv_tree(rho_i->real(), src, tag, comm); // overwrite old rho_i
-	    mrcpp::refine_grid(rho.real(), rho_i->real()); // merge grids
-	    rho.real().add(1.0, rho_i->real()); // add in place using rho.real grid
+            mrcpp::refine_grid(rho.real(), rho_i->real()); // merge grids
+            rho.real().add(1.0, rho_i->real()); // add in place using rho.real grid
         }
 	delete rho_i;
     } else {
