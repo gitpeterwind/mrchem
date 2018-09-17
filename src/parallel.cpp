@@ -1,5 +1,6 @@
 #include "MRCPP/Printer"
 #include "MRCPP/Timer"
+#include "MRCPP/trees/FunctionNode.h"
 
 #include "parallel.h"
 #include "Orbital.h"
@@ -9,6 +10,8 @@
 
 using mrcpp::Printer;
 using mrcpp::Timer;
+using mrcpp::FunctionTree;
+using mrcpp::MWNode;
 
 namespace mrchem {
 
@@ -26,9 +29,11 @@ int orb_rank = 0;
 int orb_size = 1;
 int share_rank = 0;
 int share_size = 1;
+int sh_group_rank = 0;
 
 MPI_Comm comm_orb;
 MPI_Comm comm_share;
+MPI_Comm comm_sh_group;
 
 } //namespace mpi
 
@@ -54,14 +59,12 @@ void mpi::initialize(int argc, char **argv) {
     MPI_Comm_size(comm_share, &share_size);
 
     // define a rank of the group
-    MPI_Comm comm_sh_group;
     MPI_Comm_split(MPI_COMM_WORLD, share_rank, world_rank, &comm_sh_group);
     // mpiShRank is color (same color->in same group)
     // MPI_worldrank is key (orders rank within the groups)
 
     // we define a new orbital rank, so that the orbitals within
     // a shared memory group, have consecutive ranks
-    int sh_group_rank;
     MPI_Comm_rank(comm_sh_group, &sh_group_rank);
 
     orb_rank = share_rank + sh_group_rank*world_size;
@@ -259,18 +262,28 @@ void mpi::broadcast_density(Density &rho, MPI_Comm comm) {
 
     if (comm_size == 1) return;
 
-    if (not rho.hasReal()) NOT_IMPLEMENTED_ABORT;
-    if (rho.hasImag()) NOT_IMPLEMENTED_ABORT;
-
     Timer timer;
-    if (comm_rank == 0) {
-        for (int dst = 1; dst < comm_size; dst++) {
-            int tag = 4444+dst;
-            mrcpp::send_tree(rho.real(), dst, tag, comm);
+    if (rho.is_shared and not (comm == comm_sh_group)) {//Careful: the parenthesis around (comm == comm_sh_group) are necessary!!
+        //send to submasters and submaster share with their workers
+        if (share_rank == 0) {
+            broadcast_density(rho, comm_sh_group);//comm_sh_group is the submaster group (one per compute node)
         }
+        int tag = 3141;
+        if (rho.hasReal()) mrcpp::share_tree(rho.real(), 0, tag, comm_share);
+        if (rho.hasImag()) mrcpp::share_tree(rho.imag(), 0, tag+1, comm_share);
+
     } else {
-        int tag = 4444+comm_rank;
-        mrcpp::recv_tree(rho.real(), 0, tag, comm);
+        if (comm_rank == 0) {
+            for (int dst = 1; dst < comm_size; dst++) {
+                int tag = 4444+dst;
+                if (rho.hasReal()) mrcpp::send_tree(rho.real(), dst, tag, comm);
+                if (rho.hasImag()) mrcpp::send_tree(rho.imag(), dst, 2*tag, comm);
+            }
+        } else {
+            int tag = 4444+comm_rank;
+            if (rho.hasReal()) mrcpp::recv_tree(rho.real(), 0, tag, comm);
+            if (rho.hasImag()) mrcpp::recv_tree(rho.imag(), 0, 2*tag, comm);
+        }
     }
     MPI_Barrier(comm);
     timer.stop();

@@ -1,6 +1,8 @@
 #include "MRCPP/Printer"
 #include "MRCPP/Timer"
 #include "MRCPP/Gaussians"
+#include "MRCPP/MWFunctions"
+//##include "../../../external/mrcpp/src/trees/MWNode.h"
 
 #include "parallel.h"
 
@@ -8,11 +10,15 @@
 #include "density_utils.h"
 #include "Orbital.h"
 #include "orbital_utils.h"
+#include "MRCPP/trees/FunctionNode.h"
 
 using mrcpp::Timer;
 using mrcpp::Printer;
 using mrcpp::FunctionTree;
 using mrcpp::FunctionTreeVector;
+using mrcpp::FunctionNode;
+using mrcpp::MWNode;
+using mrcpp::MWTree;
 
 namespace mrchem {
 extern mrcpp::MultiResolutionAnalysis<3> *MRA; // Global MRA
@@ -60,6 +66,22 @@ void density::compute(double prec, Density &rho, OrbitalVector &Phi, int spin) {
     double mult_prec = prec;            // prec for \rho_i = |\phi_i|^2
     double add_prec = prec/Phi.size();  // prec for \sum_i \rho_i
 
+    Density rho_tmp = rho.paramCopy();
+    FunctionTree<3> *real_2 = new FunctionTree<3>(*MRA);
+
+    rho_tmp.setReal(real_2);
+
+    Density* rho_ptr;
+
+    if (mpi::orb_rank == 0) {
+        rho_ptr = &rho;
+    } else {
+        // we need to distiguish between rho used to store final rho and
+        // rho that stores the single mpi contributions.
+        // note that this will work also for non-shared rho
+        rho_ptr = &rho_tmp;//use a separate temporary storage
+    }
+
     FunctionTreeVector<3> dens_vec;
     for (int i = 0; i < Phi.size(); i++) {
         if (mpi::my_orb(Phi[i])) {
@@ -73,16 +95,17 @@ void density::compute(double prec, Density &rho, OrbitalVector &Phi, int spin) {
     }
 
     if (add_prec > 0.0) {
-        mrcpp::add(add_prec, rho.real(), dens_vec);
+        mrcpp::add(add_prec, rho_ptr->real(), dens_vec);
     } else if (dens_vec.size() > 0) {
-        mrcpp::build_grid(rho.real(), dens_vec);
-        mrcpp::add(-1.0, rho.real(), dens_vec, 0);
+        mrcpp::build_grid(rho_ptr->real(), dens_vec);
+        mrcpp::add(-1.0, rho_ptr->real(), dens_vec, 0);
     }
     mrcpp::clear(dens_vec, true);
 
-    mpi::reduce_density(rho, mpi::comm_orb);
+    mpi::reduce_density(*rho_ptr, mpi::comm_orb);
+    rho_tmp.free();
     mpi::broadcast_density(rho, mpi::comm_orb);
-}
+ }
 
 void density::compute(double prec, Density &rho, mrcpp::GaussExp<3> &dens_exp, int spin) {
     rho.alloc(NUMBER::Real);

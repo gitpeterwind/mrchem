@@ -25,8 +25,7 @@ extern int orb_rank;
 extern int orb_size;
 extern int share_rank;
 extern int share_size;
-extern int MPI_sh_group_rank;
-extern int MPI_sh_group_size;
+extern int sh_group_rank;
 
 extern MPI_Comm comm_orb;
 extern MPI_Comm comm_share;
@@ -47,6 +46,7 @@ void recv_orbital(Orbital &orb, int src, int tag);
 
 void reduce_density(Density &rho, MPI_Comm comm);
 void broadcast_density(Density &rho, MPI_Comm comm);
+ void broadcast_share_density(Density &rho, MPI_Comm comm);
 
 void allreduce_vector(IntVector &vec, MPI_Comm comm);
 void allreduce_vector(DoubleVector &vec, MPI_Comm comm);

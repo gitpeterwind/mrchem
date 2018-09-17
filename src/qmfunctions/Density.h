@@ -42,7 +42,7 @@ public:
     Density paramCopy() const;
     Density deepCopy();
     Density dagger() const;
-    
+
     void setError(double error) { this->meta.error = error; }
     void setRankId(int rank) { this->meta.rank_id = rank; }
     void setSpin(int spin) { this->meta.spin = spin; }
@@ -56,10 +56,10 @@ public:
     double squaredNorm() const;
 
     void multiply(Density inp, double prec = -1.0);
-    
+
     void saveDensity(const std::string &file);
     void loadDensity(const std::string &file);
-
+    bool is_shared = false;
     char printSpin() const;
     friend std::ostream& operator<<(std::ostream &o, Density dens) { return dens.print(o); }
 

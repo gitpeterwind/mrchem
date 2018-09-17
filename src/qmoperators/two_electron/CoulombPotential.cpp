@@ -1,16 +1,21 @@
 #include "MRCPP/MWOperators"
 #include "MRCPP/Printer"
 #include "MRCPP/Timer"
+#include "MRCPP/trees/FunctionNode.h"
 
 #include "CoulombPotential.h"
 #include "Orbital.h"
 #include "orbital_utils.h"
 #include "density_utils.h"
 
+#include "parallel.h"
+
 using mrcpp::FunctionTree;
 using mrcpp::PoissonOperator;
 using mrcpp::Printer;
 using mrcpp::Timer;
+using mrcpp::MWNode;
+using mrcpp::MWTree;
 
 namespace mrchem {
 extern mrcpp::MultiResolutionAnalysis<3> *MRA; // Global MRA
@@ -75,6 +80,25 @@ void CoulombPotential::setupDensity(double prec) {
 
     OrbitalVector &Phi = *this->orbitals;
     Density &rho = this->density;
+    if(not rho.is_shared){
+        //FIXME: would be better to define the shared density higher up in the hierarchy
+        //define the density as shared
+        int sh_mem_size = 10000; //in MB. Virtual memory. Does not cost anything if not used
+        if (rho.hasReal()){
+            mrcpp::SharedMemory* shared_mem = new mrcpp::SharedMemory(mpi::comm_share, sh_mem_size);
+            mrcpp::FunctionTree<3> * tree = new FunctionTree<3>(*MRA, shared_mem);
+            rho.free();//CHECK: does this delete properly all content?
+            rho.setReal(tree);//Now the real part of shared_rho is shared
+            rho.is_shared = true;
+       }
+        if (rho.hasImag()){
+            mrcpp::SharedMemory* shared_mem = new mrcpp::SharedMemory(mpi::comm_share, sh_mem_size);
+            mrcpp::FunctionTree<3> * treeI = new FunctionTree<3>(*MRA, shared_mem);
+            if(!rho.hasReal())rho.free();//CHECK: does this delete properly all content?
+            rho.setImag(treeI);//Now the imaginary part of shared_rho is shared
+            rho.is_shared = true;
+        }
+    }
 
     Timer timer;
     density::compute(-1.0, rho, Phi, DENSITY::Total);
@@ -106,6 +130,7 @@ void CoulombPotential::setupPotential(double prec) {
     Timer timer;
     V.alloc(NUMBER::Real);
     mrcpp::apply(prec, V.real(), P, rho.real());
+
     timer.stop();
     int n = V.getNNodes();
     double t = timer.getWallTime();
@@ -113,8 +138,13 @@ void CoulombPotential::setupPotential(double prec) {
 
     // Prepare density grid for next iteration
     double abs_prec = prec/rho.real().integrate();
-    rho.real().crop(abs_prec, 1.0, false);
-    mrcpp::refine_grid(rho.real(), abs_prec);
+
+    if (mpi::share_rank == 0 or !rho.is_shared) {
+         rho.real().crop(abs_prec, 1.0, false);
+         mrcpp::refine_grid(rho.real(), abs_prec);
+    }
+    int tag = 99;
+    if(rho.is_shared)mrcpp::share_tree(rho.real(), 0, tag, mpi::comm_share);
 
     int newNodes = rho.real().getNNodes() - inpNodes; //LUCA also imag part here
 
