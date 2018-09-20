@@ -1,7 +1,7 @@
 #pragma once
 
-#include "QMPotential.h"
-#include "Density.h"
+#include "qmoperators/one_electron/QMPotential.h"
+#include "qmfunctions/Density.h"
 
 /** @class CoulombPotential
  *

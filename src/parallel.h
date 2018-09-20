@@ -2,11 +2,12 @@
 
 #include "MRCPP/Parallel"
 
-#include "qmfunctions.h"
-
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
+
+#include "mrchem.h"
+#include "qmfunctions/qmfunction_fwd.h"
 
 namespace mrchem {
 

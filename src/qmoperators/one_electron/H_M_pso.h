@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RankOneTensorOperator.h"
+#include "qmoperators/RankOneTensorOperator.h"
 #include "AngularMomentumOperator.h"
 #include "DistanceOperator.h"
 

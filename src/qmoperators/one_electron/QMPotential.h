@@ -1,7 +1,7 @@
 #pragma once
 
-#include "QMFunction.h"
-#include "QMOperator.h"
+#include "qmfunctions/QMFunction.h"
+#include "qmoperators/QMOperator.h"
 
 /** @class QMPotential
  *

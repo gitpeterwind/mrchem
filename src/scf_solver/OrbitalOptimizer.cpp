@@ -3,13 +3,12 @@
 
 #include "parallel.h"
 
-#include "OrbitalOptimizer.h"
-#include "HelmholtzVector.h"
-#include "KineticOperator.h"
-#include "FockOperator.h"
 #include "Accelerator.h"
-#include "Orbital.h"
-#include "orbital_utils.h"
+#include "HelmholtzVector.h"
+#include "OrbitalOptimizer.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/orbital_utils.h"
+#include "qmoperators/two_electron/FockOperator.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;
@@ -28,9 +27,8 @@ namespace mrchem {
  * "optimize()".
  */
 OrbitalOptimizer::OrbitalOptimizer(HelmholtzVector &h, Accelerator *k)
-        : GroundStateSolver(h),
-          kain(k) {
-}
+        : GroundStateSolver(h)
+        , kain(k) {}
 
 /** @brief Prepare solver for optimization
  *
@@ -41,9 +39,11 @@ OrbitalOptimizer::OrbitalOptimizer(HelmholtzVector &h, Accelerator *k)
  * SCF solver will NOT take ownership of the input, so these objects must be taken
  * care of externally (do not delete until SCF goes out of scope).
  */
+// clang-format off
 void OrbitalOptimizer::setup(FockOperator &fock,
                              OrbitalVector &Phi,
                              ComplexMatrix &F) {
+    // clang-format on
     this->fMat_n = &F;
     this->fOper_n = &fock;
     this->orbitals_n = &Phi;
@@ -102,7 +102,7 @@ bool OrbitalOptimizer::optimize() {
 
     int nIter = 0;
     bool converged = false;
-    while(nIter++ < this->maxIter or this->maxIter < 0) {
+    while (nIter++ < this->maxIter or this->maxIter < 0) {
         // Initialize SCF cycle
         Timer timer;
         printCycleHeader(nIter);
@@ -112,7 +112,7 @@ bool OrbitalOptimizer::optimize() {
         if (needLocalization(nIter)) {
             ComplexMatrix U = orbital::localize(orb_prec, Phi_n);
             fock.rotate(U);
-            F = U*F*U.adjoint();
+            F = U * F * U.adjoint();
             if (this->kain != 0) this->kain->clear();
         } else if (needDiagonalization(nIter)) {
             ComplexMatrix U = orbital::diagonalize(orb_prec, Phi_n, F);
@@ -126,7 +126,7 @@ bool OrbitalOptimizer::optimize() {
         // Setup Helmholtz operators and argument
         H.setup(orb_prec, F.real().diagonal());
         ComplexMatrix L = H.getLambdaMatrix();
-        OrbitalVector Psi_n = setupHelmholtzArguments(fock, L-F, Phi_n, true);
+        OrbitalVector Psi_n = setupHelmholtzArguments(fock, L - F, Phi_n, true);
 
         // Apply Helmholtz operators
         OrbitalVector Phi_np1 = H(Psi_n);
@@ -134,7 +134,7 @@ bool OrbitalOptimizer::optimize() {
         H.clear();
 
         ComplexMatrix U = orbital::orthonormalize(orb_prec, Phi_np1);
-        F = U*F*U.adjoint();
+        F = U * F * U.adjoint();
 
         // Compute orbital updates
         OrbitalVector dPhi_n = orbital::add(1.0, Phi_np1, -1.0, Phi_n);
@@ -179,14 +179,14 @@ bool OrbitalOptimizer::optimize() {
     fock.clear();
 
     if (this->canonical) {
-        orbital::diagonalize(orb_prec/10, Phi_n, F);
+        orbital::diagonalize(orb_prec / 10, Phi_n, F);
     } else {
-        ComplexMatrix U = orbital::localize(orb_prec/10, Phi_n);
-        F = U*F*U.adjoint();
+        ComplexMatrix U = orbital::localize(orb_prec / 10, Phi_n);
+        F = U * F * U.adjoint();
     }
 
     printConvergence(converged);
     return converged;
 }
 
-} //namespace mrchem
+} // namespace mrchem

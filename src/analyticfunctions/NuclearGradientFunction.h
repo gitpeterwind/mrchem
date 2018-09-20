@@ -2,7 +2,7 @@
 
 #include "MRCPP/MWFunctions"
 
-#include "Nucleus.h"
+#include "chemistry/Nucleus.h"
 
 namespace mrchem {
 

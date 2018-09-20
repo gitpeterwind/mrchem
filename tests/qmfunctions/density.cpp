@@ -3,9 +3,9 @@
 #include "mrchem.h"
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
-#include "Density.h"
-#include "density_utils.h"
-#include "HydrogenFunction.h"
+#include "qmfunctions/Density.h"
+#include "qmfunctions/density_utils.h"
+#include "analyticfunctions/HydrogenFunction.h"
 
 using namespace mrchem;
 

@@ -79,7 +79,7 @@ author = 'Stig Rune Jensen, Luca Frediani, Jonas Juselius, Peter Wind, Magnar Bj
 #
 # Read version from file
 # Get project version
-with open('../README.md') as f:
+with open('../VERSION') as f:
     content = f.read().replace('\n', '')
 mrchem_version = re.search('[0-9]\.[0-9]\.[0-9]', content).group(0)
 major = mrchem_version.split('.')[0]

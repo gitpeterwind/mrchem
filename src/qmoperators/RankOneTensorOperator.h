@@ -5,6 +5,8 @@
 
 namespace mrchem {
 
+class Orbital;
+
 /** @class RankOneTensorOperator
  *
  *  @brief Vector of RankZeroTensorOperator

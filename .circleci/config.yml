@@ -33,8 +33,6 @@ variables:
       shell: /bin/bash
       command: |
         pipenv run python setup \
-          --enable-tests \
-          --enable-unit-tests \
           --type=release \
           --cxx=g++ \
           --cmake-options="-DCMAKE_C_COMPILER=gcc" \
@@ -45,8 +43,6 @@ variables:
       shell: /bin/bash
       command: |
         pipenv run python setup \
-          --enable-tests \
-          --enable-unit-tests \
           --type=release \
           --cxx=g++ \
           --omp \
@@ -58,8 +54,6 @@ variables:
       shell: /bin/bash
       command: |
         pipenv run python setup \
-          --enable-tests \
-          --enable-unit-tests \
           --type=release \
           --cxx=mpicxx \
           --mpi \

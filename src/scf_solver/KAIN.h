@@ -19,15 +19,18 @@ namespace mrchem {
 
 class KAIN final : public Accelerator {
 public:
-    KAIN(int max, int min = 0, bool sep = false) : Accelerator(max, min, sep) { }
+    KAIN(int max, int min = 0, bool sep = false)
+            : Accelerator(max, min, sep) {}
 
 protected:
     void setupLinearSystem();
+    // clang-format off
     void expandSolution(double prec,
                         OrbitalVector &Phi,
                         OrbitalVector &dPhi,
                         ComplexMatrix *F,
                         ComplexMatrix *dF);
+    // clang-format on
 };
 
-} //namespace mrchem
+} // namespace mrchem

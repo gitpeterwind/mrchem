@@ -2,8 +2,7 @@
 
 #include <string>
 
-#include "qmfunctions.h"
-#include "chemistry.h"
+#include "qmfunctions/qmfunction_fwd.h"
 
 /** @file gto.h
  *
@@ -15,6 +14,8 @@
  */
 
 namespace mrchem {
+class Molecule;
+class Nucleus;
 
 namespace gto_utils {
 class OrbitalExp;

@@ -6,18 +6,18 @@
 #include "MRCPP/Timer"
 
 #include "parallel.h"
-#include "math_utils.h"
+#include "utils/math_utils.h"
 
-#include "initial_guess/core.h"
+#include "core.h"
 
-#include "HydrogenFunction.h"
-#include "Molecule.h"
-#include "Nucleus.h"
-#include "Orbital.h"
-#include "orbital_utils.h"
+#include "analyticfunctions/HydrogenFunction.h"
+#include "chemistry/Molecule.h"
+#include "chemistry/Nucleus.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/orbital_utils.h"
 
-#include "NuclearOperator.h"
-#include "KineticOperator.h"
+#include "qmoperators/one_electron/NuclearOperator.h"
+#include "qmoperators/one_electron/KineticOperator.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;

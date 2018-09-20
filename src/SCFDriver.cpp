@@ -15,41 +15,40 @@
 #include "initial_guess/sad.h"
 #include "utils/math_utils.h"
 
-#include "Orbital.h"
-#include "Density.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/Density.h"
 
 #include "SCFDriver.h"
-#include "Molecule.h"
-#include "HydrogenFunction.h"
+#include "chemistry/Molecule.h"
+#include "analyticfunctions/HydrogenFunction.h"
 
-#include "orbital_utils.h"
-#include "density_utils.h"
+#include "qmfunctions/orbital_utils.h"
+#include "qmfunctions/density_utils.h"
 
-#include "HelmholtzVector.h"
-#include "OrbitalOptimizer.h"
-#include "EnergyOptimizer.h"
-#include "LinearResponseSolver.h"
-#include "KAIN.h"
+#include "scf_solver/EnergyOptimizer.h"
+#include "scf_solver/HelmholtzVector.h"
+#include "scf_solver/KAIN.h"
+#include "scf_solver/LinearResponseSolver.h"
+#include "scf_solver/OrbitalOptimizer.h"
 
-#include "FockOperator.h"
-#include "KineticOperator.h"
-#include "NuclearOperator.h"
-#include "CoulombOperator.h"
-#include "XCOperator.h"
-#include "ExchangeOperator.h"
-#include "ElectricFieldOperator.h"
-//#include "MagneticFieldOperator.h"
+#include "qmoperators/one_electron/ElectricFieldOperator.h"
+#include "qmoperators/one_electron/KineticOperator.h"
+#include "qmoperators/one_electron/NuclearOperator.h"
+#include "qmoperators/two_electron/CoulombOperator.h"
+#include "qmoperators/two_electron/ExchangeOperator.h"
+#include "qmoperators/two_electron/FockOperator.h"
+#include "qmoperators/two_electron/XCOperator.h"
 
-#include "DipoleMoment.h"
-#include "Magnetizability.h"
-#include "GeometryDerivatives.h"
+#include "properties/DipoleMoment.h"
+#include "properties/GeometryDerivatives.h"
+#include "properties/Magnetizability.h"
 
-#include "H_E_dip.h"
-#include "H_B_dip.h"
-#include "H_M_pso.h"
-#include "H_BB_dia.h"
-#include "X_rm3.h"
-#include "NuclearGradientOperator.h"
+#include "qmoperators/one_electron/H_BB_dia.h"
+#include "qmoperators/one_electron/H_B_dip.h"
+#include "qmoperators/one_electron/H_E_dip.h"
+#include "qmoperators/one_electron/H_M_pso.h"
+#include "qmoperators/one_electron/NuclearGradientOperator.h"
+#include "qmoperators/one_electron/X_rm3.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;
@@ -154,7 +153,7 @@ SCFDriver::SCFDriver(Getkw &input) {
         ext_magnetic_field[1] = tmp[1];
         ext_magnetic_field[2] = tmp[2];
     }
-    
+
     file_start_orbitals = input.get<std::string>("Files.start_orbitals");
     file_final_orbitals = input.get<std::string>("Files.final_orbitals");
     file_basis_set = input.get<std::string>("Files.basis_set");
@@ -433,7 +432,7 @@ mrcpp::DerivativeOperator<3>* SCFDriver::useDerivative(string derivative_name) {
     if (derivative_name == "ABGV_55") return ABGV_55;
     MSG_FATAL("No such derivative operator");
 }
-    
+
 void SCFDriver::clear() {
     for (int k = 0; k < molecule->getNNuclei(); k++) {
         if (h_M[k] != 0) delete h_M[k];
@@ -989,6 +988,5 @@ mrdft::XCFunctional* SCFDriver::setupFunctional(int order) {
     setupInitialGrid(*fun, *molecule);
     return fun;
 }
-    
-} //namespace mrchem
 
+} //namespace mrchem

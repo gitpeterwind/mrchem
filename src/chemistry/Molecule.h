@@ -13,8 +13,8 @@
 #include <vector>
 
 #include "Nucleus.h"
-#include "SCFEnergy.h"
-#include "properties.h"
+#include "properties/SCFEnergy.h"
+#include "properties/properties_fwd.h"
 
 /** @class Molecule
  *

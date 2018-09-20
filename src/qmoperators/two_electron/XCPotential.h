@@ -1,6 +1,6 @@
 #pragma once
 
-#include "QMPotential.h"
+#include "qmoperators/one_electron/QMPotential.h"
 #include "mrdft/XCFunctional.h"
 
 /** @class XCPotential

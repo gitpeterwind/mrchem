@@ -1,7 +1,7 @@
 #pragma once
 
-#include "QMOperator.h"
-#include "RankZeroTensorOperator.h"
+#include "qmoperators/QMOperator.h"
+#include "qmoperators/RankZeroTensorOperator.h"
 
 namespace mrchem {
 

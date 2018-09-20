@@ -1,7 +1,6 @@
 #pragma once
 
-#include "qmfunctions.h"
-#include "chemistry.h"
+#include "qmfunctions/qmfunction_fwd.h"
 
 /** @file sad.h
  *
@@ -12,6 +11,8 @@
  */
 
 namespace mrchem {
+class Molecule;
+
 namespace initial_guess {
 namespace sad {
 

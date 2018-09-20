@@ -1,8 +1,8 @@
 #pragma once
 
 #include "QMPotential.h"
-#include "RankOneTensorOperator.h"
-#include "NuclearGradientFunction.h"
+#include "qmoperators/RankOneTensorOperator.h"
+#include "analyticfunctions/NuclearGradientFunction.h"
 
 namespace mrchem {
 

@@ -1,18 +1,18 @@
 #include "MRCPP/Printer"
 #include "MRCPP/Timer"
 
-#include "Orbital.h"
-#include "orbital_utils.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/orbital_utils.h"
 #include "FockOperator.h"
-#include "KineticOperator.h"
-#include "NuclearOperator.h"
+#include "qmoperators/one_electron/KineticOperator.h"
+#include "qmoperators/one_electron/NuclearOperator.h"
 #include "CoulombOperator.h"
 #include "ExchangeOperator.h"
-#include "ElectricFieldOperator.h"
+#include "qmoperators/one_electron/ElectricFieldOperator.h"
 #include "XCOperator.h"
-#include "SCFEnergy.h"
+#include "properties/SCFEnergy.h"
 #include "utils/math_utils.h"
-#include "chemistry/chem_utils.h"
+#include "chemistry/chemistry_utils.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;

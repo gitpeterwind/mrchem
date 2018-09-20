@@ -1,7 +1,7 @@
 #pragma once
 
 #include "PositionOperator.h"
-#include "Nucleus.h"
+#include "chemistry/Nucleus.h"
 
 /** Class H_E_dip 
  *

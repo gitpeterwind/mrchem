@@ -1,9 +1,9 @@
 #pragma once
 
-#include "RankOneTensorOperator.h"
-#include "PositionOperator.h"
-#include "DistanceOperator.h"
-#include "NuclearOperator.h"
+#include "qmoperators/RankOneTensorOperator.h"
+#include "qmoperators/one_electron/PositionOperator.h"
+#include "qmoperators/one_electron/DistanceOperator.h"
+#include "qmoperators/one_electron/NuclearOperator.h"
 
 namespace mrchem {
 

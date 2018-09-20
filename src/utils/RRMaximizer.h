@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NonlinearMaximizer.h"
-#include "qmfunctions.h"
+#include "utils/NonlinearMaximizer.h"
+#include "qmfunctions/qmfunction_fwd.h"
 
 /** subclass which defines the particular Gradient and Hessian
  * and other specific functions for a maximization of

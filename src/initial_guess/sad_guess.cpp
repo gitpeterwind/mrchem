@@ -5,11 +5,11 @@
 #include "mrenv.h"
 #include "mrchem.h"
 #include "parallel.h"
-#include "initial_guess/sad.h"
+#include "sad.h"
 
-#include "Molecule.h"
-#include "Orbital.h"
-#include "orbital_utils.h"
+#include "chemistry/Molecule.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/orbital_utils.h"
 
 Getkw mrchem::Input;
 mrcpp::MultiResolutionAnalysis<3> *mrchem::MRA;

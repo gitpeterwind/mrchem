@@ -5,7 +5,7 @@
 
 #include "OrbitalExp.h"
 #include "Intgrl.h"
-#include "Nucleus.h"
+#include "chemistry/Nucleus.h"
 #include "AOBasis.h"
 
 using mrcpp::GaussExp;

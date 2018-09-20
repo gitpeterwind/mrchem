@@ -2,9 +2,9 @@
 
 #include "mrchem.h"
 
-#include "HarmonicOscillatorFunction.h"
-#include "PositionOperator.h"
-#include "Orbital.h"
+#include "analyticfunctions/HarmonicOscillatorFunction.h"
+#include "qmoperators/one_electron/PositionOperator.h"
+#include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
 
 using namespace mrchem;

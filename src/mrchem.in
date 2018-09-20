@@ -13,11 +13,9 @@ import math
 import optparse
 import os
 import re
-import string
 import subprocess
 import sys
 import tempfile
-from copy import deepcopy
 
 # FIXME This will pick up modules when installed
 sys.path.append("@CMAKE_INSTALL_PREFIX@/@PYTHON_SITE_INSTALL_DIR@")
@@ -34,7 +32,7 @@ def main():
     global topsect
 
     # Parse command line
-    executable, dryrun, printlevel, inpfil = parse_cmdline()
+    executable, dryrun, printlevel, inpfil_cmd = parse_cmdline()
 
     # The input file is assumed to be relative to the current working directory
     # Resolve the path, so we can call this script with the input
@@ -43,7 +41,7 @@ def main():
     # root_dir is thus the current working directory
     root_dir = os.getcwd()
     # Now inpfil is the absolute path
-    inpfil = os.path.join(root_dir, inpfil)
+    inpfil = os.path.join(root_dir, inpfil_cmd)
     input_dir = os.path.abspath(os.path.join(inpfil, os.pardir))
 
     # If no input file was passed, assume it's called mrchem.inp
@@ -65,7 +63,7 @@ def main():
     inkw.run_callbacks(valid_keywords)
 
     if dryrun:
-        xfile = '@' + inpfil
+        xfile = '@' + os.path.basename(inpfil)
         with open(xfile, 'w') as fd:
             fd.write(str(inkw.top))
     else:
@@ -428,7 +426,7 @@ def verify_ext_field(ext_field):
 
     if ext_field.get('magnetic_field').is_set():
         maf = ext_field['magnetic_field'].get()
-        if (len(maff) != 3):
+        if (len(maf) != 3):
             print("invalid length of magnetic field vector:", len(maf))
             exit()
         val = math.sqrt(maf[0]**2 + maf[1]**2 + maf[2]**2)

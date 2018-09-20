@@ -2,7 +2,7 @@
 #include "MRCPP/Timer"
 
 #include "SpinOperator.h"
-#include "Orbital.h"
+#include "qmfunctions/Orbital.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;

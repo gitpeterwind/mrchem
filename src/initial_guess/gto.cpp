@@ -4,15 +4,15 @@
 #include "MRCPP/Timer"
 
 #include "parallel.h"
-#include "math_utils.h"
+#include "utils/math_utils.h"
 
-#include "initial_guess/gto.h"
-#include "gto_utils/OrbitalExp.h"
-#include "gto_utils/Intgrl.h"
+#include "gto.h"
+#include "utils/gto_utils/OrbitalExp.h"
+#include "utils/gto_utils/Intgrl.h"
 
-#include "Molecule.h"
-#include "Orbital.h"
-#include "orbital_utils.h"
+#include "chemistry/Molecule.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/orbital_utils.h"
 
 using mrcpp::GaussExp;
 using mrcpp::Printer;

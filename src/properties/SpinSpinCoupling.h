@@ -2,9 +2,9 @@
 
 #include "mrchem.h"
 
-#include "Nucleus.h"
-
 namespace mrchem {
+
+class Nucleus;
 
 class SpinSpinCoupling final {
 public:

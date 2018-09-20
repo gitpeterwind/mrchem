@@ -3,10 +3,10 @@
 #include "MRCPP/trees/FunctionNode.h"
 
 #include "parallel.h"
-#include "Orbital.h"
-#include "orbital_utils.h"
-#include "Density.h"
-#include "density_utils.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/orbital_utils.h"
+#include "qmfunctions/Density.h"
+#include "qmfunctions/density_utils.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "QMOperator.h"
-#include "qmfunctions.h"
+#include "qmoperators/QMOperator.h"
+#include "qmfunctions/qmfunction_fwd.h"
 
 namespace mrchem {
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RankTwoTensorOperator.h"
+#include "qmoperators/RankTwoTensorOperator.h"
 #include "PositionOperator.h"
 
 namespace mrchem {

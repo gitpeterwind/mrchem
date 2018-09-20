@@ -4,12 +4,12 @@
 
 #include "Molecule.h"
 #include "Nucleus.h"
-#include "DipoleMoment.h"
-#include "GeometryDerivatives.h"
-#include "Magnetizability.h"
-#include "NMRShielding.h"
-#include "HyperFineCoupling.h"
-#include "SpinSpinCoupling.h"
+#include "properties/DipoleMoment.h"
+#include "properties/GeometryDerivatives.h"
+#include "properties/Magnetizability.h"
+#include "properties/NMRShielding.h"
+#include "properties/HyperFineCoupling.h"
+#include "properties/SpinSpinCoupling.h"
 
 using mrcpp::Printer;
 

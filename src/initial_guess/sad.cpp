@@ -7,19 +7,19 @@
 
 #include "parallel.h"
 #include "utils/math_utils.h"
-#include "initial_guess/sad.h"
-#include "initial_guess/gto.h"
-#include "initial_guess/core.h"
+#include "sad.h"
+#include "gto.h"
+#include "core.h"
 
-#include "Molecule.h"
-#include "OrbitalIterator.h"
-#include "Orbital.h"
-#include "orbital_utils.h"
+#include "chemistry/Molecule.h"
+#include "qmfunctions/OrbitalIterator.h"
+#include "qmfunctions/Orbital.h"
+#include "qmfunctions/orbital_utils.h"
 
-#include "NuclearOperator.h"
-#include "KineticOperator.h"
-#include "CoulombOperator.h"
-#include "XCOperator.h"
+#include "qmoperators/one_electron/NuclearOperator.h"
+#include "qmoperators/one_electron/KineticOperator.h"
+#include "qmoperators/two_electron/CoulombOperator.h"
+#include "qmoperators/two_electron/XCOperator.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;

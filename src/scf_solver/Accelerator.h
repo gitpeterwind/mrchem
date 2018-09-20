@@ -3,7 +3,9 @@
 #include <deque>
 #include <vector>
 
-#include "qmfunctions.h"
+#include "mrchem.h"
+
+#include "qmfunctions/qmfunction_fwd.h"
 
 /** @class Acccelerator
  *
@@ -34,11 +36,13 @@ public:
     void setMaxHistory(int max) { this->maxHistory = max; }
     void setMinHistory(int min) { this->minHistory = min; }
 
+    // clang-format off
     void accelerate(double prec,
                     OrbitalVector &Phi,
                     OrbitalVector &dPhi,
-                    ComplexMatrix *F = 0,
-                    ComplexMatrix *dF = 0);
+                    ComplexMatrix *F = nullptr,
+                    ComplexMatrix *dF = nullptr);
+    // clang-format on
 
     void copyOrbitals(OrbitalVector &Phi, int nHistory = 0);
     void copyOrbitalUpdates(OrbitalVector &dPhi, int nHistory = 0);
@@ -55,26 +59,30 @@ protected:
     int maxHistory;   ///< Oldest iteration is discarded when history exceeds this size
     bool sepOrbitals; ///< Use separate subspace for each orbital
 
-    std::vector<DoubleMatrix> A;   ///< Vector of A matrices
-    std::vector<DoubleVector> b;   ///< Vector of b vectors
-    std::vector<DoubleVector> c;   ///< Vector of c vectors
+    std::vector<DoubleMatrix> A; ///< Vector of A matrices
+    std::vector<DoubleVector> b; ///< Vector of b vectors
+    std::vector<DoubleVector> c; ///< Vector of c vectors
 
-    std::deque<OrbitalVector> orbitals;     ///< Orbital history
-    std::deque<OrbitalVector> dOrbitals;    ///< Orbital update history
-    std::deque<ComplexMatrix> fock;         ///< Fock history
-    std::deque<ComplexMatrix> dFock;        ///< Fock update history
+    std::deque<OrbitalVector> orbitals;  ///< Orbital history
+    std::deque<OrbitalVector> dOrbitals; ///< Orbital update history
+    std::deque<ComplexMatrix> fock;      ///< Fock history
+    std::deque<ComplexMatrix> dFock;     ///< Fock update history
 
     bool verifyOverlap(OrbitalVector &phi);
 
+    // clang-format off
     void push_back(OrbitalVector &phi,
                    OrbitalVector &dPhi,
-                   ComplexMatrix *F = 0,
-                   ComplexMatrix *dF = 0);
+                   ComplexMatrix *F = nullptr,
+                   ComplexMatrix *dF = nullptr);
+    // clang-format on
 
     void solveLinearSystem();
     void clearLinearSystem();
+    // clang-format off
     void sortLinearSystem(std::vector<DoubleMatrix> &A_mat,
                           std::vector<DoubleVector> &b_vec);
+    // clang-format on
 
     virtual void setupLinearSystem() = 0;
     virtual void expandSolution(double prec,
@@ -84,5 +92,4 @@ protected:
                                 ComplexMatrix *dF) = 0;
 };
 
-} //namespace mrchem
-
+} // namespace mrchem

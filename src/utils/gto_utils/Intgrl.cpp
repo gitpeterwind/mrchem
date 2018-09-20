@@ -2,7 +2,7 @@
 
 #include "MRCPP/Printer"
 
-#include "Nucleus.h"
+#include "chemistry/Nucleus.h"
 
 #include "Intgrl.h"
 #include "AOBasis.h"

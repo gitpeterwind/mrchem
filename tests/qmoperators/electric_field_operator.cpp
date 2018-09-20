@@ -2,10 +2,10 @@
 
 #include "mrchem.h"
 
-#include "HydrogenFunction.h"
-#include "ElectricFieldOperator.h"
-#include "Molecule.h"
-#include "Orbital.h"
+#include "analyticfunctions/HydrogenFunction.h"
+#include "qmoperators/one_electron/ElectricFieldOperator.h"
+#include "chemistry/Molecule.h"
+#include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
 
 using namespace mrchem;

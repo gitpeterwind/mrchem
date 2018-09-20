@@ -1,5 +1,5 @@
 #include "NuclearFunction.h"
-#include "Nucleus.h"
+#include "chemistry/Nucleus.h"
 #include "utils/math_utils.h"
 
 namespace mrchem {

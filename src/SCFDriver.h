@@ -2,9 +2,8 @@
 
 #include <string>
 
-#include "chemistry.h"
-#include "qmfunctions.h"
-#include "qmoperators.h"
+#include "qmfunctions/qmfunction_fwd.h"
+#include "qmoperators/qmoperator_fwd.h"
 
 class Getkw;
 
@@ -14,6 +13,8 @@ class XCFunctional;
 
 namespace mrchem {
 
+class Nuclei;
+class Molecule;
 class OrbitalOptimizer;
 class EnergyOptimizer;
 class GroundStateSolver;
@@ -25,6 +26,7 @@ class H_E_dip;
 class H_B_dip;
 class H_M_pso;
 
+class QMOperator;
 class FockOperator;
 class CoulombOperator;
 class KineticOperator;

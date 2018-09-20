@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RankZeroTensorOperator.h"
+#include "qmoperators/RankZeroTensorOperator.h"
 #include "ExchangePotential.h"
 
 /** @class ExchangeOperator

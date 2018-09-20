@@ -2,7 +2,7 @@
 #include "MRCPP/Timer"
 
 #include "QMPotential.h"
-#include "Orbital.h"
+#include "qmfunctions/Orbital.h"
 
 using mrcpp::FunctionTreeVector;
 using mrcpp::FunctionTree;
