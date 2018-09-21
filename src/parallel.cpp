@@ -4,14 +4,10 @@
 
 #include "parallel.h"
 #include "qmfunctions/Orbital.h"
-#include "qmfunctions/orbital_utils.h"
 #include "qmfunctions/Density.h"
-#include "qmfunctions/density_utils.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;
-using mrcpp::FunctionTree;
-using mrcpp::MWNode;
 
 namespace mrchem {
 
