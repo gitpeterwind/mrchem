@@ -73,7 +73,7 @@ void density::compute(double prec, Density &rho, OrbitalVector &Phi, int spin) {
 
     Density* rho_ptr;
 
-    if (mpi::orb_rank == 0) {
+    if (mpi::share_rank == 0) {
         rho_ptr = &rho;
     } else {
         // we need to distiguish between rho used to store final rho and

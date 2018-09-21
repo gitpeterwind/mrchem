@@ -242,7 +242,7 @@ void mpi::reduce_density(Density &rho, MPI_Comm comm) {
     } else {
         int tag = 3333+comm_rank;
         mrcpp::send_tree(rho.real(), 0, tag, comm);
-        rho.real().clear();
+        rho.real().clear(); //does not remove chunks: rho is still pointing to shared memory
     }
     MPI_Barrier(comm);
     timer.stop();
