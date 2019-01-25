@@ -34,14 +34,14 @@
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
 #include "qmfunctions/qmfunction_utils.h"
-#include "qmoperators/two_electron/CoulombOperator.h"
+#include "qmoperators/two_electron/XCOperator.h"
 
 using namespace mrchem;
 using namespace orbital;
 
-namespace coulomb_potential {
+namespace xc_operator {
 
-TEST_CASE("CoulombOperator", "[coulomb_operator]") {
+TEST_CASE("XCOperatorBLYP", "[xc_operator_blyp]") {
     const double prec = 1.0e-3;
     const double thrs = 1.0e-8;
 
@@ -70,19 +70,23 @@ TEST_CASE("CoulombOperator", "[coulomb_operator]") {
         if (mpi::my_orb(Phi[i])) qmfunction::project(Phi[i], f, NUMBER::Real, prec);
     }
 
-    int i = 0;
+    mrdft::XCFunctional fun(*MRA, false);
+    fun.setFunctional("BLYP", 1.0);
+    fun.setUseGamma(false);
+    fun.setDensityCutoff(1.0e-10);
+    fun.evalSetup(1);
+    XCOperator V(&fun, &Phi);
+
+    // reference values obtained with a test run at order=9 in unit_test.cpp and prec=1.0e-5 here
+
     DoubleMatrix E_P = DoubleMatrix::Zero(Phi.size(), Phi.size());
-
-    E_P(0, 0) = 3.1676468518;
-    E_P(0, 1) = 0.262570199;
-    E_P(1, 0) = 0.262570199;
-    E_P(1, 1) = 1.6980679074;
-    E_P(2, 2) = 1.8983578764;
-    E_P(3, 3) = 1.8983578764;
-    E_P(4, 4) = 1.8983578764;
-
-    mrcpp::PoissonOperator P(*MRA, prec);
-    CoulombOperator V(&P, &Phi);
+    E_P(0, 0) = -0.4632575525;
+    E_P(0, 1) = -0.0654671939;
+    E_P(1, 0) = -0.0654671939;
+    E_P(1, 1) = -0.1793901728;
+    E_P(2, 2) = -0.1988746843;
+    E_P(3, 3) = -0.1988746843;
+    E_P(4, 4) = -0.1988746843;
 
     V.setup(prec);
     SECTION("apply") {
@@ -131,4 +135,4 @@ TEST_CASE("CoulombOperator", "[coulomb_operator]") {
     V.clear();
 }
 
-} // namespace coulomb_potential
+} // namespace xc_operator

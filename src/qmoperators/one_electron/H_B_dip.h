@@ -1,7 +1,7 @@
 #pragma once
 
-#include "qmoperators/RankOneTensorOperator.h"
 #include "AngularMomentumOperator.h"
+#include "qmoperators/RankOneTensorOperator.h"
 
 namespace mrchem {
 

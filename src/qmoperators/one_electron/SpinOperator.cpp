@@ -14,13 +14,20 @@ Orbital QMSpin::apply(Orbital inp) {
     if (this->apply_prec < 0.0) MSG_ERROR("Uninitialized operator");
 
     ComplexDouble coef(0.0, 0.0);
-    if (inp.spin() == SPIN::Paired) NOT_IMPLEMENTED_ABORT;
-    if (this->D == 0 and inp.spin() == SPIN::Alpha) coef = (0.5, 0.0);
-    if (this->D == 0 and inp.spin() == SPIN::Beta) coef = (0.5, 0.0);
-    if (this->D == 1 and inp.spin() == SPIN::Alpha) coef = (0.0, 0.5);
-    if (this->D == 1 and inp.spin() == SPIN::Beta) coef = (0.0, -0.5);
-    if (this->D == 2 and inp.spin() == SPIN::Alpha) coef = (0.5, 0.0);
-    if (this->D == 2 and inp.spin() == SPIN::Beta) coef = (-0.5, 0.0);
+    switch (inp.spin()) {
+        case SPIN::Alpha:
+            if (this->D == 0) coef = ComplexDouble(0.5, 0.0);
+            if (this->D == 1) coef = ComplexDouble(0.0, 0.5);
+            if (this->D == 2) coef = ComplexDouble(0.5, 0.0);
+            break;
+        case SPIN::Beta:
+            if (this->D == 0) coef = ComplexDouble(0.5, 0.0);
+            if (this->D == 1) coef = ComplexDouble(0.0, -0.5);
+            if (this->D == 2) coef = ComplexDouble(-0.5, 0.0);
+            break;
+        default:
+            MSG_FATAL("Cannot apply spin operator on paired orbital");
+    }
 
     Timer timer;
     Orbital out = inp.paramCopy();

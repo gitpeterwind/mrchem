@@ -129,9 +129,7 @@ RankZeroTensorOperator &RankZeroTensorOperator::operator-=(const RankZeroTensorO
  */
 void RankZeroTensorOperator::setup(double prec) {
     for (int i = 0; i < this->oper_exp.size(); i++) {
-        for (int j = 0; j < this->oper_exp[i].size(); j++) {
-            this->oper_exp[i][j]->setup(prec);
-        }
+        for (int j = 0; j < this->oper_exp[i].size(); j++) { this->oper_exp[i][j]->setup(prec); }
     }
 }
 
@@ -139,9 +137,7 @@ void RankZeroTensorOperator::setup(double prec) {
  */
 void RankZeroTensorOperator::clear() {
     for (int i = 0; i < this->oper_exp.size(); i++) {
-        for (int j = 0; j < this->oper_exp[i].size(); j++) {
-            this->oper_exp[i][j]->clear();
-        }
+        for (int j = 0; j < this->oper_exp[i].size(); j++) { this->oper_exp[i][j]->clear(); }
     }
 }
 

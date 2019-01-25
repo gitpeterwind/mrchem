@@ -11,14 +11,8 @@ using mrcpp::Timer;
 namespace mrchem {
 
 QMDelta::QMDelta(const mrcpp::Coord<3> &o, double expo)
-        : QMPotential(1) {
-    // Delta function should integrate to one
-    double coef = std::pow(expo / MATHCONST::pi, 3.0 / 2.0);
-
-    this->func.setCoef(coef);
-    this->func.setExp(expo);
-    this->func.setPos(o.data());
-}
+        : QMPotential(1)
+        , func(expo, std::pow(expo / MATHCONST::pi, 3.0 / 2.0), o) {}
 
 void QMDelta::setup(double prec) {
     if (isSetup(prec)) return;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "qmoperators/RankZeroTensorOperator.h"
 #include "ExchangePotential.h"
+#include "qmoperators/RankZeroTensorOperator.h"
 
 /** @class ExchangeOperator
  *
@@ -18,7 +18,7 @@ namespace mrchem {
 
 class ExchangeOperator final : public RankZeroTensorOperator {
 public:
- ExchangeOperator(mrcpp::PoissonOperator *P, OrbitalVector *Phi, double xFac = 1.0)
+    ExchangeOperator(mrcpp::PoissonOperator *P, OrbitalVector *Phi, double xFac = 1.0)
             : exchange(0) {
         this->exchange = new ExchangePotential(P, Phi, false);
 
@@ -30,7 +30,7 @@ public:
     void setupInternal(double prec) { this->exchange->setupInternal(prec); }
     void rotate(const ComplexMatrix &U) { this->exchange->rotate(U); }
 
-    ComplexDouble trace(OrbitalVector &Phi) { return 0.5*RankZeroTensorOperator::trace(Phi); }
+    ComplexDouble trace(OrbitalVector &Phi) { return 0.5 * RankZeroTensorOperator::trace(Phi); }
 
 protected:
     ExchangePotential *exchange;

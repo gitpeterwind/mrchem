@@ -25,8 +25,8 @@
 
 #pragma once
 
-#include "TensorOperator.h"
 #include "RankZeroTensorOperator.h"
+#include "TensorOperator.h"
 
 namespace mrchem {
 
@@ -41,8 +41,7 @@ class Orbital;
  *
  */
 
-template<int I>
-class RankOneTensorOperator : public TensorOperator<I, RankZeroTensorOperator> {
+template <int I> class RankOneTensorOperator : public TensorOperator<I, RankZeroTensorOperator> {
 public:
     OrbitalVector operator()(Orbital phi);
     ComplexVector operator()(Orbital bra, Orbital ket);

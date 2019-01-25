@@ -34,35 +34,32 @@
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
 #include "qmfunctions/qmfunction_utils.h"
-#include "qmoperators/two_electron/CoulombOperator.h"
+#include "qmoperators/two_electron/XCOperator.h"
 
 using namespace mrchem;
 using namespace orbital;
 
-namespace coulomb_potential {
+namespace coulomb_hessian {
 
-TEST_CASE("CoulombOperator", "[coulomb_operator]") {
+TEST_CASE("XCHessianPBE", "[xc_hessian_pbe]") {
     const double prec = 1.0e-3;
     const double thrs = 1.0e-8;
 
-    const int nShells = 2;
     std::vector<int> ns;
     std::vector<int> ls;
     std::vector<int> ms;
 
     OrbitalVector Phi;
-    for (int n = 1; n <= nShells; n++) {
-        int L = n;
-        for (int l = 0; l < L; l++) {
-            int M = 2 * l + 1;
-            for (int m = 0; m < M; m++) {
-                ns.push_back(n);
-                ls.push_back(l);
-                ms.push_back(m);
-                Phi.push_back(Orbital(SPIN::Paired));
-            }
-        }
-    }
+    ns.push_back(1);
+    ls.push_back(0);
+    ms.push_back(0);
+    Phi.push_back(Orbital(SPIN::Paired));
+
+    ns.push_back(2);
+    ls.push_back(0);
+    ms.push_back(0);
+    Phi.push_back(Orbital(SPIN::Paired));
+
     mpi::distribute(Phi);
 
     for (int i = 0; i < Phi.size(); i++) {
@@ -70,21 +67,47 @@ TEST_CASE("CoulombOperator", "[coulomb_operator]") {
         if (mpi::my_orb(Phi[i])) qmfunction::project(Phi[i], f, NUMBER::Real, prec);
     }
 
+    std::vector<int> ns_x;
+    std::vector<int> ls_x;
+    std::vector<int> ms_x;
+
+    OrbitalVector Phi_x;
+    ns_x.push_back(2);
+    ls_x.push_back(0);
+    ms_x.push_back(0);
+    Phi_x.push_back(Orbital(SPIN::Paired));
+
+    ns_x.push_back(2);
+    ls_x.push_back(1);
+    ms_x.push_back(1);
+    Phi_x.push_back(Orbital(SPIN::Paired));
+
+    mpi::distribute(Phi_x);
+
+    for (int i = 0; i < Phi_x.size(); i++) {
+        HydrogenFunction f(ns_x[i], ls_x[i], ms_x[i]);
+        if (mpi::my_orb(Phi_x[i])) qmfunction::project(Phi_x[i], f, NUMBER::Real, prec);
+    }
+
     int i = 0;
     DoubleMatrix E_P = DoubleMatrix::Zero(Phi.size(), Phi.size());
 
-    E_P(0, 0) = 3.1676468518;
-    E_P(0, 1) = 0.262570199;
-    E_P(1, 0) = 0.262570199;
-    E_P(1, 1) = 1.6980679074;
-    E_P(2, 2) = 1.8983578764;
-    E_P(3, 3) = 1.8983578764;
-    E_P(4, 4) = 1.8983578764;
+    E_P(0, 0) = -0.0496021801;
+    E_P(0, 1) = -0.0234437207;
+    E_P(1, 0) = -0.0234437207;
+    E_P(1, 1) = 0.0061055193;
 
-    mrcpp::PoissonOperator P(*MRA, prec);
-    CoulombOperator V(&P, &Phi);
+    mrdft::XCFunctional fun(*MRA, false);
+    fun.setFunctional("PBE", 1.0);
+    fun.setUseGamma(true);
+    fun.setDensityCutoff(1.0e-10);
+    fun.evalSetup(MRDFT::Hessian);
+    XCOperator V(&fun, &Phi, &Phi_x, &Phi_x);
 
     V.setup(prec);
+    V.setupDensity(prec);
+    V.setupPotential(prec);
+    V.setupDensity(prec);
     SECTION("apply") {
         Orbital Vphi_0 = V(Phi[0]);
         ComplexDouble V_00 = orbital::dot(Phi[0], Vphi_0);
@@ -124,6 +147,7 @@ TEST_CASE("CoulombOperator", "[coulomb_operator]") {
         for (int i = 0; i < Phi.size(); i++) {
             for (int j = 0; j <= i; j++) {
                 if (std::abs(v(i, j).real()) > thrs) REQUIRE(v(i, j).real() == Approx(E_P(i, j)).epsilon(thrs));
+                //                REQUIRE(v(i, j).real() == v(i, j).real());
                 REQUIRE(v(i, j).imag() < thrs);
             }
         }
@@ -131,4 +155,4 @@ TEST_CASE("CoulombOperator", "[coulomb_operator]") {
     V.clear();
 }
 
-} // namespace coulomb_potential
+} // namespace coulomb_hessian

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "RankZeroTensorOperator.h"
 #include "H_B_dip.h"
+#include "RankZeroTensorOperator.h"
 
 /** @class MagneticFieldOperator
  *
@@ -17,7 +17,7 @@ namespace mrchem {
 
 class MagneticFieldOperator final : public ExternalFieldOperator {
 public:
- MagneticFieldOperator(const Eigen::Vector3d &f, mrcpp::DerivativeOperator<3> &D, const mrcpp::Coord<3> &o)
+    MagneticFieldOperator(const Eigen::Vector3d &f, mrcpp::DerivativeOperator<3> &D, const mrcpp::Coord<3> &o)
             : field(f)
             , dipole(D, o) {
         RankZeroTensorOperator &d_x = this->dipole[0];
@@ -25,16 +25,15 @@ public:
         RankZeroTensorOperator &d_z = this->dipole[2];
 
         RankZeroTensorOperator &HMF = (*this);
-        HMF = f[0]*d_x + f[1]*d_y + f[2]*d_z;
+        HMF = f[0] * d_x + f[1] * d_y + f[2] * d_z;
     }
-    
+
     ComplexDouble trace(const Nuclei &nucs) { return 0.0; }
     ComplexDouble trace(const Nucleus &nuc) { return 0.0; }
 
 protected:
     Eigen::Vector3d field;
     H_B_dip dipole;
-    
 };
 
 } //namespace mrchem

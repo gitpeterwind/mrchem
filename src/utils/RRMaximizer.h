@@ -25,8 +25,8 @@
 
 #pragma once
 
-#include "utils/NonlinearMaximizer.h"
 #include "qmfunctions/qmfunction_fwd.h"
+#include "utils/NonlinearMaximizer.h"
 
 /** subclass which defines the particular Gradient and Hessian
  * and other specific functions for a maximization of
@@ -46,10 +46,10 @@ public:
     void multiply_hessian(DoubleVector &vec, DoubleVector &Hv);
 
 protected:
-    int N;                  // number of orbitals
-    DoubleMatrix r_i_orig;  // <i|R_x|j>,<i|R_y|j>,<i|R_z|j>
-    DoubleMatrix r_i ;      // rotated  r_i_orig
-    DoubleMatrix total_U;   // the rotation matrix of the orbitals
+    int N;                 // number of orbitals
+    DoubleMatrix r_i_orig; // <i|R_x|j>,<i|R_y|j>,<i|R_z|j>
+    DoubleMatrix r_i;      // rotated  r_i_orig
+    DoubleMatrix total_U;  // the rotation matrix of the orbitals
 
     double functional() const;
     double make_gradient();

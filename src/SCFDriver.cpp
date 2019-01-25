@@ -696,6 +696,7 @@ void SCFDriver::runLinearResponse(const ResponseCalculation &rsp_calc) {
 
     d_fock->getXCOperator()->setupDensity(rel_prec); //Luca: maybe this is not the best place to do this....
     d_fock->getXCOperator()->setupPotential(rel_prec);
+    d_fock->getXCOperator()->setupDensity(rel_prec); //Luca: maybe this is not the best place to do this....
 
     bool converged = true;
     if (rsp_run) {
@@ -980,7 +981,7 @@ void SCFDriver::setupInitialGrid(mrdft::XCFunctional &func, const Molecule &mol)
     Timer timer;
     const Nuclei &nucs = mol.getNuclei();
     for (int k = 0; k < nucs.size(); k++) {
-        func.buildGrid(nucs[k].getCharge(), nucs[k].getCoord().data());
+        func.buildGrid(nucs[k].getCharge(), nucs[k].getCoord());
         printout(0, std::setw(3) << k);
         printout(0, std::setw(7) << nucs[k].getElement().getSymbol());
         printout(0, std::setw(32) << func.getNNodes());

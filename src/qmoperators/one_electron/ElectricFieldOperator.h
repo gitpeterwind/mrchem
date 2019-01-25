@@ -1,7 +1,7 @@
 #pragma once
 
-#include "qmoperators/RankZeroTensorOperator.h"
 #include "H_E_dip.h"
+#include "qmoperators/RankZeroTensorOperator.h"
 
 /** @class ElectricFieldOperator
  *
@@ -24,7 +24,7 @@ namespace mrchem {
  */
 class ElectricFieldOperator final : public RankZeroTensorOperator {
 public:
- ElectricFieldOperator(const Eigen::Vector3d &f, const mrcpp::Coord<3> &o)
+    ElectricFieldOperator(const Eigen::Vector3d &f, const mrcpp::Coord<3> &o)
             : field(f)
             , dipole(o) {
         RankZeroTensorOperator &d_x = this->dipole[0];
@@ -32,10 +32,10 @@ public:
         RankZeroTensorOperator &d_z = this->dipole[2];
 
         RankZeroTensorOperator &HEF = (*this);
-        HEF = - f[0]*d_x - f[1]*d_y - f[2]*d_z;
+        HEF = -f[0] * d_x - f[1] * d_y - f[2] * d_z;
     }
 
-/** @brief returns the total nuclear contribution to the interaction
+    /** @brief returns the total nuclear contribution to the interaction
  * energy
  *
  * @param[in] the set of nuclei
@@ -47,23 +47,19 @@ public:
         return result;
     }
 
-/** @brief returns contribution to the interaction energy from a
+    /** @brief returns contribution to the interaction energy from a
  * single nucleus
  *
  * @param[in] the nucleus
  *
  */
-    ComplexDouble trace(const Nucleus &nuc) {
-        return - dipole.trace(nuc).dot(field);
-    }
+    ComplexDouble trace(const Nucleus &nuc) { return -dipole.trace(nuc).dot(field); }
 
     using RankZeroTensorOperator::trace;
 
- protected:
-    Eigen::Vector3d field; ///< the external field vector 
+protected:
+    Eigen::Vector3d field; ///< the external field vector
     H_E_dip dipole;        ///< the dipole moment operator
-    
-
 };
 
 } //namespace mrchem

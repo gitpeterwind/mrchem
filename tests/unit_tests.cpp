@@ -31,9 +31,10 @@ void initialize_mra() {
     int max_depth = 25;
 
     // Constructing world box
-    int corner[3] = {-1, -1, -1};
-    int boxes[3] = {2, 2, 2};
-    mrcpp::BoundingBox<3> world(min_scale, corner, boxes);
+    std::array<int, 3> boxes{2, 2, 2};
+    std::array<int, 3> corner{-1, -1, -1};
+    std::array<double, 3> sfac{1.0, 1.0, 1.0};
+    mrcpp::BoundingBox<3> world(min_scale, corner, boxes, sfac);
 
     // Constructing basis
     int order = 5;

@@ -4,9 +4,9 @@
 
 #include "MRCPP/Gaussians"
 
-#include <vector>
-#include <string>
 #include <fstream>
+#include <string>
+#include <vector>
 
 namespace mrchem {
 class Nucleus;

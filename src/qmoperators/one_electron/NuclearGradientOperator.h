@@ -1,15 +1,16 @@
 #pragma once
 
 #include "QMPotential.h"
-#include "qmoperators/RankOneTensorOperator.h"
 #include "analyticfunctions/NuclearGradientFunction.h"
+#include "qmoperators/RankOneTensorOperator.h"
 
 namespace mrchem {
 
 class NuclearGradientPotential final : public QMPotential {
 public:
     NuclearGradientPotential(int d, const Nucleus &nuc, double c)
-        : QMPotential(1), func(d, nuc, c) { }
+            : QMPotential(1)
+            , func(d, nuc, c) {}
 
     void setup(double prec);
     void clear();
@@ -21,9 +22,9 @@ protected:
 class NuclearGradientOperator : public RankOneTensorOperator<3> {
 public:
     NuclearGradientOperator(const Nucleus &nuc, double c)
-            : x_rm3(0, nuc, c),
-              y_rm3(1, nuc, c),
-              z_rm3(2, nuc, c) {
+            : x_rm3(0, nuc, c)
+            , y_rm3(1, nuc, c)
+            , z_rm3(2, nuc, c) {
         RankOneTensorOperator &v = (*this);
         v[0] = x_rm3;
         v[1] = y_rm3;
@@ -35,6 +36,5 @@ protected:
     NuclearGradientPotential y_rm3;
     NuclearGradientPotential z_rm3;
 };
-
 
 } //namespace mrchem

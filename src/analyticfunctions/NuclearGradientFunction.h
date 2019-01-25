@@ -25,8 +25,8 @@
 
 #pragma once
 
-#include <array>
 #include "MRCPP/MWFunctions"
+#include <array>
 
 #include "chemistry/Nucleus.h"
 
@@ -35,7 +35,9 @@ namespace mrchem {
 class NuclearGradientFunction : public mrcpp::RepresentableFunction<3> {
 public:
     NuclearGradientFunction(int d, const Nucleus &nuc, double c)
-        : dir(d), smooth(c), nucleus(nuc) { }
+            : dir(d)
+            , smooth(c)
+            , nucleus(nuc) {}
 
     double evalf(const mrcpp::Coord<3> &r) const override;
 

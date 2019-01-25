@@ -7,7 +7,8 @@ namespace mrchem {
 
 class QMIdentity final : public QMOperator {
 public:
-    QMIdentity() : QMOperator() { }
+    QMIdentity()
+            : QMOperator() {}
 
 protected:
     void setup(double prec) { setApplyPrec(prec); }

@@ -34,38 +34,31 @@
 
 #include "MRCPP/Printer"
 
-#include "PeriodicTable.h"
 #include "Element.h"
+#include "PeriodicTable.h"
 
 using std::string;
 
 namespace mrchem {
 
-const Element& PeriodicTable::getElement(const char *sym) const {
+const Element &PeriodicTable::getElement(const char *sym) const {
     string id(sym);
     id[0] = toupper(id[0]);
-    for (unsigned int i = 1; i < id.size(); i++) {
-        id[i] = tolower(id[i]);
-    }
+    for (unsigned int i = 1; i < id.size(); i++) { id[i] = tolower(id[i]); }
     if (id.size() > 2) {
-        if (this->byName.find(id) != this->byName.end()) {
-            return *this->byName[id];
-        }
+        if (this->byName.find(id) != this->byName.end()) { return *this->byName[id]; }
     } else {
-        if (this->bySymbol.find(id) != this->bySymbol.end()) {
-            return *this->bySymbol[id];
-        }
+        if (this->bySymbol.find(id) != this->bySymbol.end()) { return *this->bySymbol[id]; }
     }
     MSG_FATAL("Invalid element: " << id);
 }
 
-const Element& PeriodicTable::getElement(int Z) const {
-    if (Z < 0 or Z > PeriodicTable::nElements ) {
-        MSG_FATAL("Invalid element number: " << Z);
-    }
+const Element &PeriodicTable::getElement(int Z) const {
+    if (Z < 0 or Z > PeriodicTable::nElements) { MSG_FATAL("Invalid element number: " << Z); }
     return this->elements[Z];
 }
 
+// clang-format off
 const Element PeriodicTable::elements[PeriodicTable::nElements] = {
     Element(   1, "Q" , "Dummy"         ,   0.0000000, 0.000000, 0.000000, -1.000000 ),
     Element(   1, "H" , "Hydrogen"      ,   1.0079400, 0.790000, 0.320000, -1.000000 ),
@@ -180,11 +173,12 @@ const Element PeriodicTable::elements[PeriodicTable::nElements] = {
     Element(   0, "X" , "Heavy"         ,   1.0e6    , 0.000000, 0.000000, -1.000000 ),
     Element(   0, "Gh", "Heavy"         ,   1.0e6    , 0.000000, 0.000000, -1.000000 )
 };
+// clang-format on
 
 PeriodicTable::map_t PeriodicTable::_init_byname() {
     string name;
     map_t _map;
-    for (int i=0; i < PeriodicTable::nElements; i++ ) {
+    for (int i = 0; i < PeriodicTable::nElements; i++) {
         name = elements[i].getName();
         _map[name] = &elements[i];
     }
@@ -194,7 +188,7 @@ PeriodicTable::map_t PeriodicTable::_init_byname() {
 PeriodicTable::map_t PeriodicTable::_init_bysymbol() {
     string name;
     map_t _map;
-    for (int i=0; i < PeriodicTable::nElements; i++ ) {
+    for (int i = 0; i < PeriodicTable::nElements; i++) {
         name = elements[i].getSymbol();
         _map[name] = &elements[i];
     }

@@ -1,6 +1,7 @@
 language: cpp
 sudo: false
 dist: xenial
+ruby: 2.5.3
 
 notifications:
   slack:
@@ -23,6 +24,7 @@ matrix:
         - BUILD_TYPE='release'
         - CXX_COMPILER='g++'
         - C_COMPILER='gcc'
+        - RUN_DANGER=false
     - os: linux
       addons: *1
       env:
@@ -30,6 +32,7 @@ matrix:
         - CXX_COMPILER='g++'
         - C_COMPILER='gcc'
         - OPENMP='--omp'
+        - RUN_DANGER=false
     - os: linux
       addons: *1
       env:
@@ -37,6 +40,21 @@ matrix:
         - CXX_COMPILER='g++'
         - C_COMPILER='gcc'
         - COVERAGE='--coverage'
+        - RUN_DANGER=false
+    - os: linux
+      addons: &2
+        apt:
+          packages:
+            - clang
+            - libboost-all-dev
+            - libpython3.5-dev
+            - python3.5-dev
+            - clang-format
+      env:
+        - BUILD_TYPE='release'
+        - CXX_COMPILER='clang++'
+        - C_COMPILER='clang'
+        - RUN_DANGER=true
 
 env:
   global:
@@ -72,18 +90,23 @@ before_script:
   - test -n $CXX && unset CXX
   - test -n $FC && unset FC
   - source $(pipenv --venv)/bin/activate
+  - |
+    if [[ "${RUN_DANGER}" = true ]]; then
+      bundle install --gemfile=.ci/Gemfile
+      BUNDLE_GEMFILE=.ci/Gemfile bundle exec danger --dangerfile=.ci/Dangerfile
+    fi
 
 script:
   - ./.ci/report_versions.sh
   - |
     python ./setup \
            --type=${BUILD_TYPE} \
-           --prefix=$HOME/Software/MRChem \
+           --prefix=${HOME}/Software/MRChem \
            --cxx=${CXX_COMPILER} \
            ${COVERAGE} \
            ${OPENMP} \
            --cmake-options="-DEigen3_DIR=${HOME}/Deps/eigen/share/eigen3/cmake -DCMAKE_C_COMPILER=${C_COMPILER} -DPYTHON_EXECUTABLE=$(type -P python)"
-  - cmake --build build --target install -- VERBOSE=1
+  - cmake --build build --target install -- VERBOSE=1 -j2
   - cd build
   - |
     if [[ "${COVERAGE}" = "--coverage" ]]; then

@@ -23,9 +23,9 @@ protected:
 class MomentumOperator final : public RankOneTensorOperator<3> {
 public:
     MomentumOperator(mrcpp::DerivativeOperator<3> &D)
-            : p_x(0, D),
-              p_y(1, D),
-              p_z(2, D) {
+            : p_x(0, D)
+            , p_y(1, D)
+            , p_z(2, D) {
         RankOneTensorOperator<3> &p = (*this);
         p[0] = p_x;
         p[1] = p_y;

@@ -3,10 +3,10 @@
 
 #include "MRCPP/Printer"
 
-#include "OrbitalExp.h"
-#include "Intgrl.h"
-#include "chemistry/Nucleus.h"
 #include "AOBasis.h"
+#include "Intgrl.h"
+#include "OrbitalExp.h"
+#include "chemistry/Nucleus.h"
 
 using mrcpp::GaussExp;
 using mrcpp::GaussFunc;
@@ -22,9 +22,7 @@ OrbitalExp::OrbitalExp(Intgrl &intgrl)
 
 OrbitalExp::~OrbitalExp() {
     for (int i = 0; i < this->orbitals.size(); i++) {
-        if (this->orbitals[i] != 0) {
-            delete this->orbitals[i];
-        }
+        if (this->orbitals[i] != 0) { delete this->orbitals[i]; }
     }
 }
 
@@ -35,8 +33,8 @@ GaussExp<3> OrbitalExp::getMO(int i, const DoubleMatrix &M) const {
     for (int j = 0; j < size(); j++) {
         GaussExp<3> ao_j = getAO(j);
         //ao_i.normalize();
-        if (std::abs(M(i,j)) > mrcpp::MachineZero) {
-            ao_j *= M(i,j);
+        if (std::abs(M(i, j)) > mrcpp::MachineZero) {
+            ao_j *= M(i, j);
             mo_i.append(ao_j);
             n++;
         }
@@ -62,7 +60,7 @@ GaussExp<3> OrbitalExp::getDens(const DoubleMatrix &D) const {
             GaussExp<3> ao_i = getAO(i);
             GaussExp<3> ao_j = getAO(j);
             GaussExp<3> d_ij = ao_i * ao_j;
-            d_ij *= D(i,j);
+            d_ij *= D(i, j);
             d_exp.append(d_ij);
         }
     }
@@ -77,8 +75,8 @@ void OrbitalExp::rotate(const DoubleMatrix &U) {
         for (int j = 0; j < size(); j++) {
             GaussExp<3> ao_j = getAO(j);
             //ao_j.normalize();
-            if (std::abs(U(i,j)) > mrcpp::MachineZero) {
-                ao_j *= U(i,j);
+            if (std::abs(U(i, j)) > mrcpp::MachineZero) {
+                ao_j *= U(i, j);
                 mo_i->append(ao_j);
                 n++;
             }
@@ -113,9 +111,7 @@ void OrbitalExp::readAOExpansion(Intgrl &intgrl) {
 }
 
 void OrbitalExp::transformToSpherical() {
-    if (not this->cartesian) {
-        return;
-    }
+    if (not this->cartesian) { return; }
     std::vector<GaussExp<3> *> tmp;
     int nOrbs = this->size();
     int n = 0;
@@ -128,16 +124,14 @@ void OrbitalExp::transformToSpherical() {
             n++;
         } else if (l == 2) {
             for (int i = 0; i < 5; i++) {
-                if (this->orbitals[n+i]->size() != 1) {
-                    MSG_FATAL("Cannot handle contracted d orbitals");
-                }
+                if (this->orbitals[n + i]->size() != 1) { MSG_FATAL("Cannot handle contracted d orbitals"); }
             }
-            Gaussian<3> &xx = this->orbitals[n+0]->getFunc(0);
-            Gaussian<3> &xy = this->orbitals[n+1]->getFunc(0);
-            Gaussian<3> &xz = this->orbitals[n+2]->getFunc(0);
-            Gaussian<3> &yy = this->orbitals[n+3]->getFunc(0);
-            Gaussian<3> &yz = this->orbitals[n+4]->getFunc(0);
-            Gaussian<3> &zz = this->orbitals[n+5]->getFunc(0);
+            Gaussian<3> &xx = this->orbitals[n + 0]->getFunc(0);
+            Gaussian<3> &xy = this->orbitals[n + 1]->getFunc(0);
+            Gaussian<3> &xz = this->orbitals[n + 2]->getFunc(0);
+            Gaussian<3> &yy = this->orbitals[n + 3]->getFunc(0);
+            Gaussian<3> &yz = this->orbitals[n + 4]->getFunc(0);
+            Gaussian<3> &zz = this->orbitals[n + 5]->getFunc(0);
 
             {
                 GaussExp<3> *spherical = new GaussExp<3>;
@@ -154,14 +148,14 @@ void OrbitalExp::transformToSpherical() {
                 tmp.push_back(spherical);
             }
             {
-                double coef = 1.0/std::sqrt(3.0);
+                double coef = 1.0 / std::sqrt(3.0);
                 GaussExp<3> *spherical = new GaussExp<3>;
                 spherical->append(xx);
                 spherical->append(yy);
                 spherical->append(zz);
-                spherical->getFunc(0).setCoef(-0.5*coef*xx.getCoef());
-                spherical->getFunc(1).setCoef(-0.5*coef*yy.getCoef());
-                spherical->getFunc(2).setCoef(coef*zz.getCoef());
+                spherical->getFunc(0).setCoef(-0.5 * coef * xx.getCoef());
+                spherical->getFunc(1).setCoef(-0.5 * coef * yy.getCoef());
+                spherical->getFunc(2).setCoef(coef * zz.getCoef());
                 spherical->normalize();
                 tmp.push_back(spherical);
             }
@@ -175,8 +169,8 @@ void OrbitalExp::transformToSpherical() {
                 GaussExp<3> *spherical = new GaussExp<3>;
                 spherical->append(xx);
                 spherical->append(yy);
-                spherical->getFunc(0).setCoef(0.5*xx.getCoef());
-                spherical->getFunc(1).setCoef(-0.5*yy.getCoef());
+                spherical->getFunc(0).setCoef(0.5 * xx.getCoef());
+                spherical->getFunc(1).setCoef(-0.5 * yy.getCoef());
                 spherical->normalize();
                 tmp.push_back(spherical);
             }
@@ -203,7 +197,7 @@ int OrbitalExp::getAngularMomentum(int n) const {
     int l = -1;
     GaussExp<3> &gExp = *this->orbitals[n];
     for (int i = 0; i < gExp.size(); i++) {
-        const int *pow = gExp.getPower(i);
+        const auto &pow = gExp.getPower(i);
         int iL = pow[0] + pow[1] + pow[2];
         if (l < 0) {
             l = iL;

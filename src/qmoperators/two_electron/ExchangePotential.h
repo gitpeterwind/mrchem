@@ -1,7 +1,7 @@
 #pragma once
 
-#include "qmoperators/QMOperator.h"
 #include "qmfunctions/qmfunction_fwd.h"
+#include "qmoperators/QMOperator.h"
 
 namespace mrchem {
 
@@ -22,17 +22,17 @@ namespace mrchem {
 class ExchangePotential final : public QMOperator {
 public:
     ExchangePotential(mrcpp::PoissonOperator *P, OrbitalVector *phi, bool s);
-    ~ExchangePotential() { }
+    ~ExchangePotential() {}
 
     void rotate(const ComplexMatrix &U);
 
     void setupInternal(double prec);
 
 protected:
-    bool screen;                ///< Apply screening in exchange evaluation
-    DoubleVector tot_norms;     ///< Total norms for use in screening
-    DoubleMatrix part_norms;    ///< Partial norms for use in screening
-    OrbitalVector exchange;     ///< Precomputed exchange orbitals from the occupied orbital set
+    bool screen;             ///< Apply screening in exchange evaluation
+    DoubleVector tot_norms;  ///< Total norms for use in screening
+    DoubleMatrix part_norms; ///< Partial norms for use in screening
+    OrbitalVector exchange;  ///< Precomputed exchange orbitals from the occupied orbital set
 
     // Pointers to external objects, ownership outside this class
     OrbitalVector *orbitals;         ///< Orbitals defining the exchange operator

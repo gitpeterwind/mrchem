@@ -2,13 +2,13 @@
 
 #include "chemistry/Nucleus.h"
 
-#include "Intgrl.h"
 #include "AOBasis.h"
+#include "Intgrl.h"
 
 using mrcpp::GaussExp;
 
-#define GETLINE(X,S)  if (not getline(X,S)) \
-    MSG_FATAL("Unexpected end of file while reading basis sets!");
+#define GETLINE(X, S)                                                                                                  \
+    if (not getline(X, S)) MSG_FATAL("Unexpected end of file while reading basis sets!");
 
 namespace mrchem {
 namespace gto_utils {
@@ -22,14 +22,10 @@ Intgrl::Intgrl(const std::string &file) {
 
 Intgrl::~Intgrl() {
     for (int i = 0; i < this->nuclei.size(); i++) {
-        if (this->nuclei[i] != 0) {
-            delete this->nuclei[i];
-        }
+        if (this->nuclei[i] != 0) { delete this->nuclei[i]; }
     }
     for (int i = 0; i < this->basis.size(); i++) {
-        if (this->basis[i] != 0) {
-            delete this->basis[i];
-        }
+        if (this->basis[i] != 0) { delete this->basis[i]; }
     }
 }
 
@@ -40,9 +36,7 @@ void Intgrl::readIntgrlFile(std::ifstream &ifs) {
     GETLINE(ifs, line); //Second line is number of atom types
     std::istringstream iss(line);
     iss >> nTypes;
-    for (int i = 0; i < nTypes; i++) {
-        readAtomBlock(ifs);
-    }
+    for (int i = 0; i < nTypes; i++) { readAtomBlock(ifs); }
 }
 
 void Intgrl::readAtomBlock(std::ifstream &ifs) {
@@ -55,16 +49,12 @@ void Intgrl::readAtomBlock(std::ifstream &ifs) {
     ifs >> nShell;
 
     int funcsPerShell[nShell];
-    for (int i = 0; i < nShell; i++) {
-        ifs >> funcsPerShell[i];
-    }
+    for (int i = 0; i < nShell; i++) { ifs >> funcsPerShell[i]; }
 
     readAtomData(ifs, nAtoms, z);
     AOBasis bas;
     for (int i = 0; i < nShell; i++) {
-        for (int j = 0; j < funcsPerShell[i]; j++) {
-            readContractionBlock(ifs, bas, i);
-        }
+        for (int j = 0; j < funcsPerShell[i]; j++) { readContractionBlock(ifs, bas, i); }
     }
     for (int i = 0; i < nAtoms; i++) {
         AOBasis *aoBas = new AOBasis(bas);
@@ -77,12 +67,8 @@ void Intgrl::readAtomData(std::ifstream &ifs, int n_atoms, double z) {
     std::string sym;
     for (int j = 0; j < n_atoms; j++) {
         ifs >> sym;
-        if (sym.size() > 2) {
-            sym = sym.erase(2);
-        }
-        for (int d = 0; d < 3; d++) {
-            ifs >> coord[d];
-        }
+        if (sym.size() > 2) { sym = sym.erase(2); }
+        for (int d = 0; d < 3; d++) { ifs >> coord[d]; }
         PeriodicTable pt;
         const Element &element = pt.getElement(sym.c_str());
 
@@ -112,9 +98,7 @@ void Intgrl::readContractionBlock(std::ifstream &ifs, AOBasis &bas, int l) {
         ifs >> expo;
         for (int i = 0; i < nctr; i++) {
             ifs >> coef;
-            if (std::abs(coef) > mrcpp::MachineZero) {
-                bas.getContraction(start + i).append(expo, coef);
-            }
+            if (std::abs(coef) > mrcpp::MachineZero) { bas.getContraction(start + i).append(expo, coef); }
         }
     }
 }

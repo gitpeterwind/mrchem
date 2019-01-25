@@ -25,8 +25,8 @@
 
 #pragma once
 
-#include <array>
 #include "MRCPP/MWFunctions"
+#include <array>
 
 namespace mrchem {
 

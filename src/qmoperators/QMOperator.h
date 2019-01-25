@@ -55,8 +55,9 @@ class Orbital;
 
 class QMOperator {
 public:
-    QMOperator() : apply_prec(-1.0) { }
-    virtual ~QMOperator() { }
+    QMOperator()
+            : apply_prec(-1.0) {}
+    virtual ~QMOperator() {}
 
     double prec() { return this->apply_prec; }
 

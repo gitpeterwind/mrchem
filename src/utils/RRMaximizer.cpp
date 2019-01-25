@@ -28,10 +28,10 @@
 #include "utils/RRMaximizer.h"
 #include "utils/math_utils.h"
 
-#include "qmoperators/one_electron/PositionOperator.h"
 #include "qmfunctions/Orbital.h"
-#include "qmfunctions/orbital_utils.h"
 #include "qmfunctions/OrbitalIterator.h"
+#include "qmfunctions/orbital_utils.h"
+#include "qmoperators/one_electron/PositionOperator.h"
 
 namespace mrchem {
 
@@ -41,12 +41,12 @@ RRMaximizer::RRMaximizer(double prec, OrbitalVector &Phi) {
     this->N = Phi.size();
     if (this->N < 2) MSG_ERROR("Cannot localize less than two orbitals");
 
-    this->total_U = DoubleMatrix::Identity(this->N,this->N);
-    this->N2h = this->N*(this->N-1)/2;
+    this->total_U = DoubleMatrix::Identity(this->N, this->N);
+    this->N2h = this->N * (this->N - 1) / 2;
     this->gradient = DoubleVector(this->N2h);
     this->hessian = DoubleMatrix(this->N2h, this->N2h);
-    this->r_i_orig = DoubleMatrix::Zero(this->N,3*this->N);
-    this->r_i = DoubleMatrix(this->N,3*this->N);
+    this->r_i_orig = DoubleMatrix::Zero(this->N, 3 * this->N);
+    this->r_i = DoubleMatrix(this->N, 3 * this->N);
 
     //Make R matrix
     PositionOperator r;
@@ -56,9 +56,9 @@ RRMaximizer::RRMaximizer(double prec, OrbitalVector &Phi) {
     RankZeroTensorOperator &r_y = r[1];
     RankZeroTensorOperator &r_z = r[2];
 
-    ComplexMatrix R_x = ComplexMatrix::Zero(Phi.size(),Phi.size());
-    ComplexMatrix R_y = ComplexMatrix::Zero(Phi.size(),Phi.size());
-    ComplexMatrix R_z = ComplexMatrix::Zero(Phi.size(),Phi.size());
+    ComplexMatrix R_x = ComplexMatrix::Zero(Phi.size(), Phi.size());
+    ComplexMatrix R_y = ComplexMatrix::Zero(Phi.size(), Phi.size());
+    ComplexMatrix R_z = ComplexMatrix::Zero(Phi.size(), Phi.size());
 
     OrbitalVector xPhi_Vec = r_x(Phi);
     OrbitalVector yPhi_Vec = r_y(Phi);
@@ -97,13 +97,13 @@ RRMaximizer::RRMaximizer(double prec, OrbitalVector &Phi) {
     for (int i = 0; i < this->N; i++) {
         for (int j = 0; j <= i; j++) {
             if (Phi[i].spin() != Phi[j].spin()) MSG_ERROR("Spins must be separated before localization");
-            this->r_i_orig(i,j          ) = R_x(i,j).real();
-            this->r_i_orig(i,j+  this->N) = R_y(i,j).real();
-            this->r_i_orig(i,j+2*this->N) = R_z(i,j).real();
+            this->r_i_orig(i, j) = R_x(i, j).real();
+            this->r_i_orig(i, j + this->N) = R_y(i, j).real();
+            this->r_i_orig(i, j + 2 * this->N) = R_z(i, j).real();
 
-            this->r_i_orig(j,i          ) = this->r_i_orig(i,j          );
-            this->r_i_orig(j,i+  this->N) = this->r_i_orig(i,j+  this->N);
-            this->r_i_orig(j,i+2*this->N) = this->r_i_orig(i,j+2*this->N);
+            this->r_i_orig(j, i) = this->r_i_orig(i, j);
+            this->r_i_orig(j, i + this->N) = this->r_i_orig(i, j + this->N);
+            this->r_i_orig(j, i + 2 * this->N) = this->r_i_orig(i, j + 2 * this->N);
         }
     }
 
@@ -115,21 +115,21 @@ RRMaximizer::RRMaximizer(double prec, OrbitalVector &Phi) {
 
     //rotate R matrices into orthonormal basis
     ComplexMatrix S_m12 = orbital::calc_lowdin_matrix(Phi);
-    this->total_U = S_m12.real()*this->total_U;
+    this->total_U = S_m12.real() * this->total_U;
 
     DoubleMatrix R(this->N, this->N);
-    for(int d = 0; d < 3; d++){
+    for (int d = 0; d < 3; d++) {
         for (int j = 0; j < this->N; j++) {
             for (int i = 0; i <= j; i++) {
-                R(i,j) = this->r_i_orig(i,j+d*this->N);
-                R(j,i) = this->r_i_orig(i,j+d*this->N);//Enforce symmetry
+                R(i, j) = this->r_i_orig(i, j + d * this->N);
+                R(j, i) = this->r_i_orig(i, j + d * this->N); //Enforce symmetry
             }
         }
-        R = this->total_U.transpose()*R*this->total_U;
+        R = this->total_U.transpose() * R * this->total_U;
         for (int j = 0; j < this->N; j++) {
             for (int i = 0; i <= j; i++) {
-                this->r_i(i,j+d*this->N)=R(i,j);
-                this->r_i(j,i+d*this->N)=R(i,j);//Enforce symmetry
+                this->r_i(i, j + d * this->N) = R(i, j);
+                this->r_i(j, i + d * this->N) = R(i, j); //Enforce symmetry
             }
         }
     }
@@ -143,8 +143,8 @@ double RRMaximizer::functional() const {
     double s1 = 0.0;
     for (int d = 0; d < 3; d++) {
         for (int j = 0; j < this->N; j++) {
-            double r_jj = this->r_i(j,j+d*this->N);
-            s1 += r_jj*r_jj;
+            double r_jj = this->r_i(j, j + d * this->N);
+            s1 += r_jj * r_jj;
         }
     }
     return s1;
@@ -159,23 +159,23 @@ double RRMaximizer::make_gradient() {
         int ij = 0;
         for (int j = 0; j < this->N; j++) {
             for (int i = 0; i < j; i++) {
-                double r_ij = this->r_i(i,j+d*this->N);
-                double r_ii = this->r_i(i,i+d*this->N);
-                double r_jj = this->r_i(j,j+d*this->N);
-                this->gradient(ij) += 4.0*r_ij*(r_ii - r_jj);
+                double r_ij = this->r_i(i, j + d * this->N);
+                double r_ii = this->r_i(i, i + d * this->N);
+                double r_jj = this->r_i(j, j + d * this->N);
+                this->gradient(ij) += 4.0 * r_ij * (r_ii - r_jj);
                 ij++;
             }
         }
     }
 
     double norm = 0.0;
-    for (int ij = 0; ij < this->N2h; ij++) {
-        norm += this->gradient(ij)*this->gradient(ij);
-    }
+    for (int ij = 0; ij < this->N2h; ij++) { norm += this->gradient(ij) * this->gradient(ij); }
     return std::sqrt(norm);
 }
+
 /** Make Hessian matrix for the RRMaximizer case
  */
+// clang-format off
 double RRMaximizer::make_hessian() {
     this->hessian = DoubleMatrix::Zero(this->N2h, this->N2h);
 
@@ -216,9 +216,12 @@ double RRMaximizer::make_hessian() {
     }
     return 0.0;
 }
+// clang-format on
+
 /** Multiply a vector with Hessian for the RRMaximizer case.
  *  Does not store the Hessian values.
  */
+// clang-format off
 void RRMaximizer::multiply_hessian(DoubleVector &vec, DoubleVector &Hv) {
     double djk, djl, dik, dil;
     int kl;
@@ -336,8 +339,11 @@ void RRMaximizer::multiply_hessian(DoubleVector &vec, DoubleVector &Hv) {
         }
     }
 }
+// clang-format on
+
 /** Returns Hessian value for the RRMaximizer case
  */
+// clang-format off
 double RRMaximizer::get_hessian(int ij, int kl) {
     double hessian_val = 0.0;
 
@@ -377,6 +383,7 @@ double RRMaximizer::get_hessian(int ij, int kl) {
     }
     return hessian_val;
 }
+// clang-format on
 
 /** Given the step matrix, update the rotation matrix and the R matrix
  */
@@ -386,11 +393,11 @@ void RRMaximizer::do_step(const DoubleVector &step) {
     int ij = 0;
     for (int j = 0; j < this->N; j++) {
         for (int i = 0; i < j; i++) {
-            A(i,j) =  step(ij);
-            A(j,i) = -step(ij);
+            A(i, j) = step(ij);
+            A(j, i) = -step(ij);
             ij++;
         }
-        A(j,j) = 0.0;
+        A(j, j) = 0.0;
     }
 
     //calculate U=exp(-A) by diagonalization and U=Vexp(id)Vt with VdVt=iA
@@ -399,17 +406,13 @@ void RRMaximizer::do_step(const DoubleVector &step) {
 
     //rotate the original r matrix with total U
     DoubleMatrix r(this->N, this->N);
-    for (int d = 0; d < 3; d++){
+    for (int d = 0; d < 3; d++) {
         for (int j = 0; j < this->N; j++) {
-            for (int i = 0; i < this->N; i++) {
-                r(i,j) = this->r_i_orig(i,j+d*this->N);
-            }
+            for (int i = 0; i < this->N; i++) { r(i, j) = this->r_i_orig(i, j + d * this->N); }
         }
-        r = this->total_U.transpose()*r*this->total_U;
+        r = this->total_U.transpose() * r * this->total_U;
         for (int j = 0; j < this->N; j++) {
-            for (int i = 0; i < this->N; i++) {
-                this->r_i(i,j+d*this->N) = r(i,j);
-            }
+            for (int i = 0; i < this->N; i++) { this->r_i(i, j + d * this->N) = r(i, j); }
         }
     }
 }

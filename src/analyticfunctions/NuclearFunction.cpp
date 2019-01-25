@@ -43,7 +43,7 @@ double NuclearFunction::evalf(const mrcpp::Coord<3> &r) const {
         const mrcpp::Coord<3> &R = this->nuclei[i].getCoord();
         double R1 = math_utils::calc_distance(R, r) / S_i;
         double partResult = -std::erf(R1) / R1 + c * (std::exp(-R1 * R1) + 16.0 * std::exp(-4.0 * R1 * R1));
-        result += Z_i*partResult/S_i;
+        result += Z_i * partResult / S_i;
     }
     return result;
 }
@@ -51,12 +51,10 @@ double NuclearFunction::evalf(const mrcpp::Coord<3> &r) const {
 bool NuclearFunction::isVisibleAtScale(int scale, int nQuadPts) const {
     double minSmooth = this->smooth[0];
     for (int i = 1; i < this->smooth.size(); i++) {
-        if (this->smooth[i] < minSmooth) {
-            minSmooth = this->smooth[i];
-        }
+        if (this->smooth[i] < minSmooth) { minSmooth = this->smooth[i]; }
     }
     double stdDeviation = std::pow(minSmooth, -0.5);
-    int visibleScale = int (std::floor(std::log2(nQuadPts * 5.0 * stdDeviation)));
+    int visibleScale = int(std::floor(std::log2(nQuadPts * 5.0 * stdDeviation)));
     if (scale < visibleScale) {
         return false;
     } else {

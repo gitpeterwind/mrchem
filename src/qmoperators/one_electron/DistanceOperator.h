@@ -1,8 +1,8 @@
 #pragma once
 
-#include "qmoperators/one_electron/QMPotential.h"
-#include "qmoperators/RankZeroTensorOperator.h"
 #include "analyticfunctions/NuclearFunction.h"
+#include "qmoperators/RankZeroTensorOperator.h"
+#include "qmoperators/one_electron/QMPotential.h"
 
 namespace mrchem {
 
@@ -29,6 +29,5 @@ public:
 protected:
     DistancePotential r_pow;
 };
-
 
 } //namespace mrchem

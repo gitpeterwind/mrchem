@@ -3,6 +3,8 @@
 #include "MRCPP/Timer"
 #include "getkw/Getkw.hpp"
 
+#include <algorithm>
+
 #include "mrchem.h"
 #include "mrenv.h"
 #include "parallel.h"
@@ -49,7 +51,11 @@ void initialize(int argc, char **argv) {
     int max_scale = Input.get<int>("MRA.max_scale");
     vector<int> corner = Input.getIntVec("MRA.corner");
     vector<int> boxes = Input.getIntVec("MRA.boxes");
-    BoundingBox<3> world(min_scale, corner.data(), boxes.data());
+    std::array<int, 3> c_idx;
+    std::array<int, 3> n_bxs;
+    std::copy_n(corner.begin(), 3, c_idx.begin());
+    std::copy_n(boxes.begin(), 3, n_bxs.begin());
+    BoundingBox<3> world(min_scale, c_idx, n_bxs);
 
     // Initialize scaling basis
     int order = Input.get<int>("MRA.order");

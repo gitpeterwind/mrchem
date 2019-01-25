@@ -27,12 +27,12 @@ class CoulombPotential : public QMPotential {
 public:
     CoulombPotential(mrcpp::PoissonOperator *P);
     virtual ~CoulombPotential() = default;
-    
+
     friend class CoulombOperator;
 
 protected:
-    Density density;                  ///< Ground-state electron density
-    mrcpp::PoissonOperator *poisson;  ///< Operator used to compute the potential
+    Density density;                 ///< Ground-state electron density
+    mrcpp::PoissonOperator *poisson; ///< Operator used to compute the potential
 
     Density &getDensity() { return this->density; }
     bool hasDensity() const { return (this->density.squaredNorm() < 0.0) ? false : true; }
@@ -40,7 +40,7 @@ protected:
     void setup(double prec);
     void clear();
 
-    virtual void setupDensity(double prec) { }
+    virtual void setupDensity(double prec) {}
     void setupPotential(double prec);
 };
 

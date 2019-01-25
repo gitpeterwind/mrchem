@@ -1,7 +1,7 @@
 #pragma once
 
-#include "PositionOperator.h"
 #include "MomentumOperator.h"
+#include "PositionOperator.h"
 
 namespace mrchem {
 

@@ -7,7 +7,8 @@ namespace mrchem {
 
 class QMSpin final : public QMOperator {
 public:
-    QMSpin(int d) : D(d) { }
+    QMSpin(int d)
+            : D(d) {}
 
 protected:
     const int D;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "qmoperators/one_electron/QMPotential.h"
 #include "qmoperators/RankOneTensorOperator.h"
+#include "qmoperators/one_electron/QMPotential.h"
 
 namespace mrchem {
 

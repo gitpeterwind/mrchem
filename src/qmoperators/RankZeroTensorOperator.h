@@ -25,9 +25,9 @@
 
 #pragma once
 
-#include "qmoperators/QMOperator.h"
-#include "qmfunctions/qmfunction_fwd.h"
 #include "chemistry/chemistry_fwd.h"
+#include "qmfunctions/qmfunction_fwd.h"
+#include "qmoperators/QMOperator.h"
 
 namespace mrchem {
 
@@ -65,10 +65,10 @@ using QMOperatorVector = std::vector<QMOperator *>;
 
 class RankZeroTensorOperator {
 public:
-    RankZeroTensorOperator() { }
+    RankZeroTensorOperator() {}
     RankZeroTensorOperator(QMOperator &O) { *this = O; }
     RankZeroTensorOperator(const RankZeroTensorOperator &O) { *this = O; }
-    virtual ~RankZeroTensorOperator() { }
+    virtual ~RankZeroTensorOperator() {}
 
     int size() const { return this->oper_exp.size(); }
 
@@ -90,12 +90,12 @@ public:
     ComplexDouble trace(OrbitalVector &Phi);
     ComplexDouble trace(OrbitalVector &Phi, OrbitalVector &X, OrbitalVector &Y);
 
-    RankZeroTensorOperator& operator=(QMOperator &O);
-    RankZeroTensorOperator& operator+=(QMOperator &O);
-    RankZeroTensorOperator& operator-=(QMOperator &O);
-    RankZeroTensorOperator& operator=(const RankZeroTensorOperator &O);
-    RankZeroTensorOperator& operator+=(const RankZeroTensorOperator &O);
-    RankZeroTensorOperator& operator-=(const RankZeroTensorOperator &O);
+    RankZeroTensorOperator &operator=(QMOperator &O);
+    RankZeroTensorOperator &operator+=(QMOperator &O);
+    RankZeroTensorOperator &operator-=(QMOperator &O);
+    RankZeroTensorOperator &operator=(const RankZeroTensorOperator &O);
+    RankZeroTensorOperator &operator+=(const RankZeroTensorOperator &O);
+    RankZeroTensorOperator &operator-=(const RankZeroTensorOperator &O);
 
     friend RankZeroTensorOperator operator*(ComplexDouble a, RankZeroTensorOperator A);
     friend RankZeroTensorOperator operator*(RankZeroTensorOperator A, RankZeroTensorOperator B);
@@ -110,18 +110,16 @@ protected:
     ComplexVector getCoefVector() const;
 };
 
-
 inline RankZeroTensorOperator operator*(ComplexDouble a, RankZeroTensorOperator A) {
     RankZeroTensorOperator out;
     for (int i = 0; i < A.oper_exp.size(); i++) {
-        out.coef_exp.push_back(a*A.coef_exp[i]);
+        out.coef_exp.push_back(a * A.coef_exp[i]);
         out.oper_exp.push_back(A.oper_exp[i]);
     }
     return out;
 }
 
-inline RankZeroTensorOperator operator*(RankZeroTensorOperator A,
-                                        RankZeroTensorOperator B) {
+inline RankZeroTensorOperator operator*(RankZeroTensorOperator A, RankZeroTensorOperator B) {
     RankZeroTensorOperator out;
     int a_terms = A.oper_exp.size();
     int b_terms = B.oper_exp.size();
@@ -139,15 +137,14 @@ inline RankZeroTensorOperator operator*(RankZeroTensorOperator A,
                 QMOperator *A_ij = A.oper_exp[i][j];
                 tmp.push_back(A_ij);
             }
-            out.coef_exp.push_back(b_k*a_i);
+            out.coef_exp.push_back(b_k * a_i);
             out.oper_exp.push_back(tmp);
         }
     }
     return out;
 }
 
-inline RankZeroTensorOperator operator+(RankZeroTensorOperator A,
-                                        RankZeroTensorOperator B) {
+inline RankZeroTensorOperator operator+(RankZeroTensorOperator A, RankZeroTensorOperator B) {
     RankZeroTensorOperator out;
     for (int i = 0; i < A.oper_exp.size(); i++) {
         out.coef_exp.push_back(A.coef_exp[i]);
@@ -160,8 +157,7 @@ inline RankZeroTensorOperator operator+(RankZeroTensorOperator A,
     return out;
 }
 
-inline RankZeroTensorOperator operator-(RankZeroTensorOperator A,
-                                        RankZeroTensorOperator B) {
+inline RankZeroTensorOperator operator-(RankZeroTensorOperator A, RankZeroTensorOperator B) {
     RankZeroTensorOperator out;
     for (int i = 0; i < A.oper_exp.size(); i++) {
         out.coef_exp.push_back(A.coef_exp[i]);

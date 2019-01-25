@@ -30,7 +30,7 @@ available, and the latest version (with limited functionality) can be found on
 version, expect major changes in the future.
 
 Features as of September 2018:
---------------------------
+--------------------------------
 
 * Wave functions:
     + Kohn-Sham DFT

@@ -13,7 +13,8 @@ chemistry (Hartree-Fock and Density Functional Theory).
 The code is being developed at the Hylleraas Centre for Quantum Molecular
 Sciences at UiT - The Arctic University of Norway.
 
-## Documentation: http://mrchem.readthedocs.io
+### User support: [mrchem.slack.com](https://join.slack.com/t/mrchem/shared_invite/enQtNTI3MjMzNjM0NTk0LWNkODZjNTMwYmM4NmRmODExMjQzMDc3NThlMzNmNmIyNWQwM2YwOGY0OWY4NmNmNzE4ZmM2NzgxYzUzNDg3NDM)
+### Documentation: [mrchem.readthedocs.io](http://mrchem.readthedocs.io)
 
 ### Git hooks
 

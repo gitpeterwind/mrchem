@@ -256,9 +256,7 @@ TEST_CASE("OrbitalVector", "[orbital_vector]") {
 
             ComplexMatrix S = orbital::calc_overlap_matrix(Psi, Phi);
             for (int i = 0; i < S.rows(); i++) {
-                for (int j = 0; j < S.cols(); j++) {
-                    REQUIRE(std::abs(S(i, j)) < thrs);
-                }
+                for (int j = 0; j < S.cols(); j++) { REQUIRE(std::abs(S(i, j)) < thrs); }
             }
         }
     }

@@ -34,14 +34,14 @@ double NuclearGradientFunction::evalf(const mrcpp::Coord<3> &r) const {
     double c_A = this->smooth;
     double Z_A = this->nucleus.getCharge();
     const mrcpp::Coord<3> &R_A = this->nucleus.getCoord();
-    double x_A =  R_A[this->dir] - r[this->dir];
+    double x_A = R_A[this->dir] - r[this->dir];
     double r_A = math_utils::calc_distance(R_A, r);
-    return -Z_A*(x_A/r_A)*du_dr(r_A/c_A)/(c_A*c_A);
+    return -Z_A * (x_A / r_A) * du_dr(r_A / c_A) / (c_A * c_A);
 }
 
 bool NuclearGradientFunction::isVisibleAtScale(int scale, int nQuadPts) const {
     double stdDeviation = std::pow(this->smooth, -0.5);
-    int visibleScale = int (std::floor(std::log2(nQuadPts*5.0*stdDeviation)));
+    int visibleScale = int(std::floor(std::log2(nQuadPts * 5.0 * stdDeviation)));
     return (scale < visibleScale) ? false : true;
 }
 
@@ -54,6 +54,7 @@ bool NuclearGradientFunction::isZeroOnInterval(const double *a, const double *b)
     return out;
 }
 
+// clang-format off
 double NuclearGradientFunction::du_dr(double r1) const {
     double out = 0.0;
     if (r1 > 6.0) {
@@ -83,5 +84,6 @@ double NuclearGradientFunction::du_dr(double r1) const {
     }
     return out;
 }
+// clang-format on
 
 } //namespace mrchem

@@ -39,7 +39,7 @@
 using namespace mrchem;
 using namespace orbital;
 
-namespace xc_potential {
+namespace xc_operator {
 
 TEST_CASE("XCOperator", "[xc_operator]") {
     const double prec = 1.0e-3;
@@ -76,24 +76,24 @@ TEST_CASE("XCOperator", "[xc_operator]") {
     fun.setDensityCutoff(1.0e-10);
     fun.evalSetup(1);
     XCOperator V(&fun, &Phi);
-    
+
     // reference values obtained with a test run at order=9 in unit_test.cpp and prec=1.0e-5 here
 
     DoubleMatrix E_P = DoubleMatrix::Zero(Phi.size(), Phi.size());
-    E_P(0,0) = -0.4574999901;
-    E_P(0,1) = -0.0593789497;
-    E_P(1,0) = -0.0593789497;
-    E_P(1,1) = -0.1894199551;
-    E_P(2,2) = -0.2109971956;
-    E_P(3,3) = -0.2109971956;
-    E_P(4,4) = -0.2109971956;
+    E_P(0, 0) = -0.4574999901;
+    E_P(0, 1) = -0.0593789497;
+    E_P(1, 0) = -0.0593789497;
+    E_P(1, 1) = -0.1894199551;
+    E_P(2, 2) = -0.2109971956;
+    E_P(3, 3) = -0.2109971956;
+    E_P(4, 4) = -0.2109971956;
 
     V.setup(prec);
     SECTION("apply") {
         Orbital Vphi_0 = V(Phi[0]);
         ComplexDouble V_00 = orbital::dot(Phi[0], Vphi_0);
         if (mpi::my_orb(Phi[0])) {
-            REQUIRE(V_00.real() == Approx(E_P(0,0)).epsilon(thrs));
+            REQUIRE(V_00.real() == Approx(E_P(0, 0)).epsilon(thrs));
             REQUIRE(V_00.imag() < thrs);
         } else {
             REQUIRE(V_00.real() < thrs);
@@ -102,10 +102,10 @@ TEST_CASE("XCOperator", "[xc_operator]") {
     }
     SECTION("vector apply") {
         OrbitalVector VPhi = V(Phi);
-                for (int i = 0; i < Phi.size(); i++) {
+        for (int i = 0; i < Phi.size(); i++) {
             ComplexDouble V_ii = orbital::dot(Phi[i], VPhi[i]);
             if (mpi::my_orb(Phi[i])) {
-                REQUIRE(V_ii.real() == Approx(E_P(i,i)).epsilon(thrs));
+                REQUIRE(V_ii.real() == Approx(E_P(i, i)).epsilon(thrs));
                 REQUIRE(V_ii.imag() < thrs);
             } else {
                 REQUIRE(V_ii.real() < thrs);
@@ -116,7 +116,7 @@ TEST_CASE("XCOperator", "[xc_operator]") {
     SECTION("expectation value") {
         ComplexDouble V_00 = V(Phi[0], Phi[0]);
         if (mpi::my_orb(Phi[0])) {
-            REQUIRE(V_00.real() == Approx(E_P(0,0)).epsilon(thrs));
+            REQUIRE(V_00.real() == Approx(E_P(0, 0)).epsilon(thrs));
             REQUIRE(V_00.imag() < thrs);
         } else {
             REQUIRE(V_00.real() < thrs);
@@ -127,7 +127,7 @@ TEST_CASE("XCOperator", "[xc_operator]") {
         ComplexMatrix v = V(Phi, Phi);
         for (int i = 0; i < Phi.size(); i++) {
             for (int j = 0; j <= i; j++) {
-                if (std::abs(v(i,j).real()) > thrs) REQUIRE(v(i, j).real() == Approx(E_P(i, j)).epsilon(thrs));
+                if (std::abs(v(i, j).real()) > thrs) REQUIRE(v(i, j).real() == Approx(E_P(i, j)).epsilon(thrs));
                 REQUIRE(v(i, j).imag() < thrs);
             }
         }
@@ -135,4 +135,4 @@ TEST_CASE("XCOperator", "[xc_operator]") {
     V.clear();
 }
 
-} // namespace nuclear_potential
+} // namespace xc_operator

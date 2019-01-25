@@ -10,6 +10,48 @@ Build prerequisites
 The supplied setup script should be able to configure things
 correctly, provided all the necessary tools are available.
 
+Python
+------
+
+MRChem depends on some Python tools for its compilation and execution.
+More specifically, users will need Python:
+
+- for configuration using the script ``setup``.
+- to run the integration tests, using the ```runtest`` library <https://runtest.readthedocs.io/en/latest/>`_.
+- for input parsing and running calculations, using the ``mrchem`` script.
+
+Developers will additionally need Python to build the documentation locally with
+Sphinx.
+
+We **strongly** suggest not to install these Python dependencies locally, but
+rather to use a local virtual environment.
+We provide both a ``Pipfile`` and a ``requirements.txt`` specifying the Python
+dependencies.
+We recommend using `Pipenv <https://pipenv.readthedocs.io/en/latest/>`_, since
+it manages virtual environment and package installation seamlessly.
+After installing it with your package manager, run::
+
+    $ pipenv install
+
+to create a virtual environment with all packages installed.
+
+.. note::
+   Developers will want to run::
+
+      $ pipenv install --dev
+
+   to also install development packages, such as those needed to generate
+   documentation with Sphinx.
+
+The environment can be activated with::
+
+    $ pipenv shell
+
+Alternatively, any Python command can be run within the virtual environment by
+doing::
+
+    $ pipenv run python -c "print('Hello, world')"
+
 Stallo
 ------
 
@@ -75,10 +117,11 @@ a collection of small unit tests::
 To run a couple of more involved integration tests::
 
     $ cd <build-dir>
-    $ ctest -L integration
+    $ pipenv run ctest -L integration
 
-In order to run the integration tests you must first install the ``runtest``
-Python package (listed as required in ``Pipfile``).
+Note how we used Pipenv to run the integration tests. This ensures that the
+Python dependencies are satisfied in a virtual environment and available to
+``ctest``.
 
 -------------------
 Running the program
@@ -109,4 +152,3 @@ processes::
 
     $ ./mrchem -D mrchem.inp
     $ OMP_NUM_THREADS=20  mpirun -np 5 @mrchem.inp >mrchem.out &
-

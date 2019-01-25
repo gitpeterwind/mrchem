@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include<array>
+#include <array>
 
 #include "MRCPP/MWFunctions"
 

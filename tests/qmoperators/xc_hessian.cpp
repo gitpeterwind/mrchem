@@ -39,7 +39,7 @@
 using namespace mrchem;
 using namespace orbital;
 
-namespace coulomb_hessian {
+namespace xc_hessian {
 
 TEST_CASE("XCHessian", "[xc_hessian]") {
     const double prec = 1.0e-3;
@@ -48,7 +48,7 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
     std::vector<int> ns;
     std::vector<int> ls;
     std::vector<int> ms;
-    
+
     OrbitalVector Phi;
     ns.push_back(1);
     ls.push_back(0);
@@ -92,10 +92,10 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
     int i = 0;
     DoubleMatrix E_P = DoubleMatrix::Zero(Phi.size(), Phi.size());
 
-    E_P(0,0) = -0.0507818907147;
-    E_P(0,1) = -0.0226852770676;
-    E_P(1,0) = -0.0226852770676;
-    E_P(1,1) = 0.00549970397828;
+    E_P(0, 0) = -0.0507818907147;
+    E_P(0, 1) = -0.0226852770676;
+    E_P(1, 0) = -0.0226852770676;
+    E_P(1, 1) = 0.00549970397828;
 
     mrdft::XCFunctional fun(*MRA, false);
     fun.setFunctional("LDA", 1.0);
@@ -103,7 +103,7 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
     fun.setDensityCutoff(1.0e-10);
     fun.evalSetup(MRDFT::Hessian);
     XCOperator V(&fun, &Phi, &Phi_x, &Phi_x);
-    
+
     V.setup(prec);
     V.setupDensity(prec);
     V.setupPotential(prec);
@@ -112,7 +112,7 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
         Orbital Vphi_0 = V(Phi[0]);
         ComplexDouble V_00 = orbital::dot(Phi[0], Vphi_0);
         if (mpi::my_orb(Phi[0])) {
-            REQUIRE(V_00.real() == Approx(E_P(0,0)).epsilon(thrs));
+            REQUIRE(V_00.real() == Approx(E_P(0, 0)).epsilon(thrs));
             REQUIRE(V_00.imag() < thrs);
         } else {
             REQUIRE(V_00.real() < thrs);
@@ -124,7 +124,7 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
         for (int i = 0; i < Phi.size(); i++) {
             ComplexDouble V_ii = orbital::dot(Phi[i], VPhi[i]);
             if (mpi::my_orb(Phi[i])) {
-                REQUIRE(V_ii.real() == Approx(E_P(i,i)).epsilon(thrs));
+                REQUIRE(V_ii.real() == Approx(E_P(i, i)).epsilon(thrs));
                 REQUIRE(V_ii.imag() < thrs);
             } else {
                 REQUIRE(V_ii.real() < thrs);
@@ -135,7 +135,7 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
     SECTION("expectation value") {
         ComplexDouble V_00 = V(Phi[0], Phi[0]);
         if (mpi::my_orb(Phi[0])) {
-            REQUIRE(V_00.real() == Approx(E_P(0,0)).epsilon(thrs));
+            REQUIRE(V_00.real() == Approx(E_P(0, 0)).epsilon(thrs));
             REQUIRE(V_00.imag() < thrs);
         } else {
             REQUIRE(V_00.real() < thrs);
@@ -146,7 +146,7 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
         ComplexMatrix v = V(Phi, Phi);
         for (int i = 0; i < Phi.size(); i++) {
             for (int j = 0; j <= i; j++) {
-                if (std::abs(v(i, j).real()) > thrs) REQUIRE(v(i, j).real() == Approx(E_P(i,j)).epsilon(thrs));
+                if (std::abs(v(i, j).real()) > thrs) REQUIRE(v(i, j).real() == Approx(E_P(i, j)).epsilon(thrs));
                 REQUIRE(v(i, j).imag() < thrs);
             }
         }
@@ -154,4 +154,4 @@ TEST_CASE("XCHessian", "[xc_hessian]") {
     V.clear();
 }
 
-} // namespace nuclear_potential
+} // namespace xc_hessian

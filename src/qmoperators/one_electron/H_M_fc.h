@@ -1,8 +1,8 @@
 #pragma once
 
-#include "RankOneTensorOperator.h"
 #include "DeltaOperator.h"
 #include "H_B_spin.h"
+#include "RankOneTensorOperator.h"
 
 namespace mrchem {
 

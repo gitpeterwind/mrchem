@@ -28,13 +28,14 @@ public:
     int getMoment() const { return this->L; }
     void setMoment(int l) { this->L = l; }
 
-    friend std::ostream& operator<<(std::ostream &o, const AOContraction &c) {
+    friend std::ostream &operator<<(std::ostream &o, const AOContraction &c) {
         o << " " << c.L << " " << c.coefs.size() << std::endl;
         for (unsigned int i = 0; i < c.expo.size(); i++) {
             o << "    " << c.expo[i] << "   " << c.coefs[i] << std::endl;
         }
         return o;
     }
+
 protected:
     int L;
     int nComp;

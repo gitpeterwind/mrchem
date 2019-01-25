@@ -40,13 +40,11 @@ public:
     Nucleus(const Element &elm, const mrcpp::Coord<3> &r)
             : charge(elm.getZ())
             , coord(r)
-            , element(&elm) {
-    }
+            , element(&elm) {}
     Nucleus(const Nucleus &nuc)
             : charge(nuc.charge)
             , coord(nuc.coord)
-            , element(nuc.element) {
-    }
+            , element(nuc.element) {}
     Nucleus &operator=(const Nucleus &nuc) {
         if (this != &nuc) {
             this->charge = nuc.charge;

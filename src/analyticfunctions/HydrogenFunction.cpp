@@ -26,22 +26,24 @@
 #include "MRCPP/Printer"
 
 #include "HydrogenFunction.h"
-#include "utils/math_utils.h"
 #include "mrchem.h"
+#include "utils/math_utils.h"
 
 namespace mrchem {
 
 RadialFunction::RadialFunction(int n, int l, double Z)
-        : N(n), L(l) {
+        : N(n)
+        , L(l) {
     this->c_0 = calcConstant(Z);
-    this->c_1 = 2.0*Z/(1.0*this->N);
+    this->c_1 = 2.0 * Z / (1.0 * this->N);
 }
 
 double RadialFunction::evalf(const mrcpp::Coord<1> &r) const {
-    double rho = this->c_1*r[0];
-    return this->c_0*this->evalfPoly(rho)*exp(-rho/2.0);
+    double rho = this->c_1 * r[0];
+    return this->c_0 * this->evalfPoly(rho) * exp(-rho / 2.0);
 }
 
+// clang-format off
 double RadialFunction::calcConstant(double Z) const {
     double c = 0.0;
     if (N == 1 and L == 0) { c = 2.0;
@@ -64,7 +66,9 @@ double RadialFunction::calcConstant(double Z) const {
     } else { NOT_IMPLEMENTED_ABORT; }
     return c*pow(Z, 3.0/2.0);
 }
+// clang-format on
 
+// clang-format off
 double RadialFunction::evalfPoly(double r) const {
     double value = 0.0;
     if (N == 1 and L == 0) { value =        (  1.0                                                                     );
@@ -87,16 +91,19 @@ double RadialFunction::evalfPoly(double r) const {
     } else { NOT_IMPLEMENTED_ABORT; }
     return value;
 }
+// clang-format on
 
 AngularFunction::AngularFunction(int l, int m)
-    : L(l), M(m) {
+        : L(l)
+        , M(m) {
     this->c_0 = calcConstant();
 }
 
 double AngularFunction::evalf(const mrcpp::Coord<3> &r) const {
-    return this->c_0*this->evalfPoly(r);
+    return this->c_0 * this->evalfPoly(r);
 }
 
+// clang-format off
 double AngularFunction::calcConstant() const {
     double c = 0.0;
     if (L == 0 and M == 0) { c = std::sqrt(  1.0/1.0);
@@ -118,7 +125,9 @@ double AngularFunction::calcConstant() const {
     } else { NOT_IMPLEMENTED_ABORT; }
     return c/(2.0*MATHCONST::sqrt_pi);
 }
+// clang-format on
 
+// clang-format off
 double AngularFunction::evalfPoly(const mrcpp::Coord<3> &q) const {
     double x = q[0];
     double y = q[1];
@@ -144,6 +153,7 @@ double AngularFunction::evalfPoly(const mrcpp::Coord<3> &q) const {
     } else { NOT_IMPLEMENTED_ABORT; }
     return value;
 }
+// clang-format on
 
 HydrogenFunction::HydrogenFunction(int n, int l, int m, double Z)
         : RepresentableFunction<3>()
@@ -161,7 +171,7 @@ double HydrogenFunction::evalf(const mrcpp::Coord<3> &p) const {
     const mrcpp::Coord<3> &o = this->origin;
     mrcpp::Coord<3> q{p[0] - o[0], p[1] - o[1], p[2] - o[2]};
     mrcpp::Coord<1> r{math_utils::calc_distance(p, o)};
-    return this->R.evalf(r)*this->Y.evalf(q);
+    return this->R.evalf(r) * this->Y.evalf(q);
 }
 
 } //namespace mrchem

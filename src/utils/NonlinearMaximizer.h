@@ -42,11 +42,12 @@ namespace mrchem {
 
 class NonlinearMaximizer {
 public:
-    NonlinearMaximizer() : N2h(0) { }
+    NonlinearMaximizer()
+            : N2h(0) {}
     int maximize();
 
 protected:
-    int N2h;//size (for orbital localization: N2h = N*(N-1)/2)
+    int N2h; //size (for orbital localization: N2h = N*(N-1)/2)
     DoubleMatrix hessian;
     DoubleVector gradient;
 
@@ -54,8 +55,8 @@ protected:
     virtual double make_gradient() { return -1.0; }
     virtual double make_hessian() { return -1.0; }
     virtual double get_hessian(int i, int j) { return -1.0; }
-    virtual void multiply_hessian(DoubleVector &vec, DoubleVector &Hv){}
-    virtual void do_step(const DoubleVector &step) { }
+    virtual void multiply_hessian(DoubleVector &vec, DoubleVector &Hv) {}
+    virtual void do_step(const DoubleVector &step) {}
 };
 
 } //namespace mrchem

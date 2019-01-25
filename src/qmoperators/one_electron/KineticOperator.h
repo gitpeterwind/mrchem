@@ -1,7 +1,7 @@
 #pragma once
 
-#include "qmoperators/RankZeroTensorOperator.h"
 #include "MomentumOperator.h"
+#include "qmoperators/RankZeroTensorOperator.h"
 
 /** @class KineticOperator
  *
@@ -25,7 +25,7 @@ public:
         RankZeroTensorOperator &p_z = this->p[2];
 
         RankZeroTensorOperator &t = (*this);
-        t = 0.5*(p_x*p_x + p_y*p_y + p_z*p_z);
+        t = 0.5 * (p_x * p_x + p_y * p_y + p_z * p_z);
     }
 
     ComplexMatrix operator()(OrbitalVector &bra, OrbitalVector &ket);

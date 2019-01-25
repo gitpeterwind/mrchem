@@ -57,12 +57,14 @@ TEST_CASE("ElectricFieldOperator", "[electric_field_operator]") {
 
     Eigen::MatrixXd ref(nFuncs, nFuncs);
 
+    // clang-format off
     //reference values for the electric field energy operator
     ref <<  0.90000000, 0.00000000, 0.74493554, 0.74493554, 0.74493554,
             0.00000000, 0.90000000, 3.00000000, 3.00000000, 3.00000000,
             0.74493554, 3.00000000, 0.90000000, 0.00000000, 0.00000000,
             0.74493554, 3.00000000, 0.00000000, 0.90000000, 0.00000000,
             0.74493554, 3.00000000, 0.00000000, 0.00000000, 0.90000000;
+    // clang-format on
 
     // setting up the field
     Eigen::Vector3d field;
@@ -130,9 +132,7 @@ TEST_CASE("ElectricFieldOperator", "[electric_field_operator]") {
     SECTION("operator matrix elements") {
         ComplexMatrix X = EF(Phi, Phi);
         for (int i = 0; i < X.rows(); i++) {
-            for (int j = 0; j < X.cols(); j++) {
-                REQUIRE(std::abs(X(i, j).real()) == Approx(ref(i, j)).margin(thrs));
-            }
+            for (int j = 0; j < X.cols(); j++) { REQUIRE(std::abs(X(i, j).real()) == Approx(ref(i, j)).margin(thrs)); }
         }
     }
     EF.clear();
