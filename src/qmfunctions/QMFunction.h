@@ -66,7 +66,7 @@ public:
     double squaredNorm() const;
     ComplexDouble integrate() const;
 
-    void crop(double prec);
+    int crop(double prec);
     void rescale(double c);
     void rescale(ComplexDouble c);
     void add(ComplexDouble c, QMFunction inp);

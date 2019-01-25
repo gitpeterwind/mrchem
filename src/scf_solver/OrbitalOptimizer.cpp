@@ -118,9 +118,10 @@ bool OrbitalOptimizer::optimize() {
     double err_t = 1.0;
     double err_p = 1.0;
 
+    orbital::print_size_nodes(Phi_n,"before loop setup");
     F.setup(orb_prec);
     F_mat = F(Phi_n, Phi_n);
-
+    orbital::print_size_nodes(Phi_n,"before loop start");
     int nIter = 0;
     bool converged = false;
     while (nIter++ < this->maxIter or this->maxIter < 0) {
@@ -135,11 +136,13 @@ bool OrbitalOptimizer::optimize() {
             F.rotate(U_mat);
             F_mat = U_mat * F_mat * U_mat.adjoint();
             if (useKAIN()) this->kain->clear();
+            orbital::print_size_nodes(Phi_n,"after localization");
         } else if (needDiagonalization(nIter)) {
             ComplexMatrix U_mat = orbital::diagonalize(orb_prec, Phi_n, F_mat);
             F.rotate(U_mat);
             if (useKAIN()) this->kain->clear();
         }
+        orbital::print_size_nodes(Phi_n);
         // Compute electronic energy
         double E = calcProperty();
         this->property.push_back(E);
@@ -148,7 +151,10 @@ bool OrbitalOptimizer::optimize() {
         HelmholtzVector H(orb_prec, F_mat.real().diagonal());
         ComplexMatrix L_mat = H.getLambdaMatrix();
         OrbitalVector Psi = orbital::rotate(L_mat - F_mat, Phi_n);
+        orbital::print_size_nodes(Psi,"after Helmholtz rotation");
         OrbitalVector Phi_np1 = H(V, Phi_n, Psi);
+        orbital::print_size_nodes(Phi_np1,"after Helmholtz application");
+
         Psi.clear();
         F.clear();
 
@@ -157,6 +163,7 @@ bool OrbitalOptimizer::optimize() {
 
         // Compute orbital updates
         OrbitalVector dPhi_n = orbital::add(1.0, Phi_np1, -1.0, Phi_n);
+        orbital::print_size_nodes(Phi_np1,"after update");
         Phi_np1.clear();
 
         // Employ KAIN accelerator
@@ -181,6 +188,7 @@ bool OrbitalOptimizer::optimize() {
         // Compute Fock matrix
         F.setup(orb_prec);
         F_mat = F(Phi_n, Phi_n);
+        orbital::print_size_nodes(Phi_n,"after Fock setup");
 
         // Finalize SCF cycle
         timer.stop();

@@ -107,14 +107,16 @@ int QMFunction::getNNodes(int type) const {
     return nNodes;
 }
 
-void QMFunction::crop(double prec) {
+int QMFunction::crop(double prec) {
     if (prec < 0.0) return;
     bool need_to_crop = not(isShared()) or mpi::share_master();
+    int nChunksremoved = 0;
     if (need_to_crop) {
-        if (hasReal()) real().crop(prec, 1.0, false);
-        if (hasImag()) imag().crop(prec, 1.0, false);
+        if (hasReal()) nChunksremoved = real().crop(prec, 1.0, false);
+        if (hasImag()) nChunksremoved += imag().crop(prec, 1.0, false);
     }
     mpi::share_function(*this, 0, 7744, mpi::comm_share);
+    return nChunksremoved;
 }
 
 ComplexDouble QMFunction::integrate() const {
