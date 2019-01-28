@@ -108,7 +108,7 @@ int QMFunction::getNNodes(int type) const {
 }
 
 int QMFunction::crop(double prec) {
-    if (prec < 0.0) return;
+    if (prec < 0.0) return 0;
     bool need_to_crop = not(isShared()) or mpi::share_master();
     int nChunksremoved = 0;
     if (need_to_crop) {

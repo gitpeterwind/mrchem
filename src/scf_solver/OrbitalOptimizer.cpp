@@ -136,13 +136,12 @@ bool OrbitalOptimizer::optimize() {
             F.rotate(U_mat);
             F_mat = U_mat * F_mat * U_mat.adjoint();
             if (useKAIN()) this->kain->clear();
-            orbital::print_size_nodes(Phi_n,"after localization");
         } else if (needDiagonalization(nIter)) {
             ComplexMatrix U_mat = orbital::diagonalize(orb_prec, Phi_n, F_mat);
             F.rotate(U_mat);
             if (useKAIN()) this->kain->clear();
         }
-        orbital::print_size_nodes(Phi_n);
+        orbital::print_size_nodes(Phi_n,"after localization");
         // Compute electronic energy
         double E = calcProperty();
         this->property.push_back(E);
@@ -157,13 +156,15 @@ bool OrbitalOptimizer::optimize() {
 
         Psi.clear();
         F.clear();
+        orbital::print_size_nodes(Phi_np1,"after clear");
 
         ComplexMatrix U_mat = orbital::orthonormalize(orb_prec, Phi_np1);
         F_mat = U_mat * F_mat * U_mat.adjoint();
+        orbital::print_size_nodes(Phi_np1,"after orthonormalize");
 
         // Compute orbital updates
         OrbitalVector dPhi_n = orbital::add(1.0, Phi_np1, -1.0, Phi_n);
-        orbital::print_size_nodes(Phi_np1,"after update");
+        orbital::print_size_nodes(dPhi_n,"after update");
         Phi_np1.clear();
 
         // Employ KAIN accelerator

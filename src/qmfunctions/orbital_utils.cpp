@@ -159,6 +159,7 @@ OrbitalVector orbital::rotate(const ComplexMatrix &U, OrbitalVector &Phi, double
     OrbitalVector out = orbital::param_copy(Phi);
     OrbitalIterator iter(Phi);
     print_size_nodes(Phi,"rotation in");
+    int deleted = 0;
     while (iter.next()) {
         for (int i = 0; i < out.size(); i++) {
             if (not mpi::my_orb(out[i])) continue;
@@ -172,18 +173,12 @@ OrbitalVector orbital::rotate(const ComplexMatrix &U, OrbitalVector &Phi, double
                 func_vec.push_back(recv_j);
             }
             Orbital tmp_i = out[i].paramCopy();
-            //print_size_nodes(out,"in rotation before linear comb",false);
             qmfunction::linear_combination(tmp_i, coef_vec, func_vec, inter_prec);
-            //print_size_nodes(out,"in rotation after linear comb",false);
             out[i].add(1.0, tmp_i); // In place addition
-            //print_size_nodes(out,"in rotation after add comb",false);
-            //            if(mpi::orb_rank==0 and out[i].getNNodes(NUMBER::Total)>0)std::cout<<i<<" size out[i] before crop "<<(int)1.0*out[i].real().getKp1_d()*8*8*out[i].getNNodes(NUMBER::Total)/(1024*1024)<<" MB"<<std::endl;
-            int nc = out[i].crop(inter_prec);
-            //if(mpi::orb_rank==0 and out[i].getNNodes(NUMBER::Total)>0)std::cout<<nc<<" size out[i] "<<(int)1.0*out[i].real().getKp1_d()*8*8*out[i].getNNodes(NUMBER::Total)/(1024*1024)<<" included unused "<<(int)2.0*out[i].real().getNChunks()<<" chunkused used "<<(int)2.0*out[i].real().getNChunksUsed()<<" MB"<<std::endl;
-            //print_size_nodes(out,"in rotation after crop",false);
+            deleted += out[i].crop(inter_prec);
         }
     }
-
+    if(mpi::orb_rank==0)std::cout<<"master deleted "<<deleted<<" chunks"<<std::endl;
     if (mpi::numerically_exact) {
         for (auto &out_i : out) {
             if (mpi::my_orb(out_i)) out_i.crop(prec);
@@ -722,6 +717,7 @@ int orbital::print_size_nodes(const OrbitalVector &Phi, char* txt, bool all) {
     double nMin = 999999999, vMin = 999999999;
     double nSum = 0, vSum = 0;
     double nOwnOrbs = 0, OwnSumMax = 0, OwnSumMin = 999999999;
+    double totMax = 0, totMin = 999999999;
     if(mpi::orb_rank==0)std::cout<<"OrbitalVector sizes statistics (MB) "<<txt<<std::endl;
     //stats for own orbitals
     for (int i = 0; i < nOrbs; i++){
@@ -734,11 +730,12 @@ int orbital::print_size_nodes(const OrbitalVector &Phi, char* txt, bool all) {
     }
     if(nSum==0) nMin = 0;
 
-    DoubleMatrix VecStats = DoubleMatrix::Zero(4, mpi::orb_size);
+    DoubleMatrix VecStats = DoubleMatrix::Zero(5, mpi::orb_size);
     VecStats(0,mpi::orb_rank) = nMax;
     VecStats(1,mpi::orb_rank) = nMin;
     VecStats(2,mpi::orb_rank) = nSum;
     VecStats(3,mpi::orb_rank) = nOwnOrbs;
+    VecStats(4,mpi::orb_rank) = Printer::printMem("",true);
 
     if(all){
         mpi::allreduce_matrix(VecStats, mpi::comm_orb);
@@ -748,6 +745,8 @@ int orbital::print_size_nodes(const OrbitalVector &Phi, char* txt, bool all) {
             if (VecStats(1,i) < vMin) vMin = VecStats(1,i);
             if (VecStats(2,i) > OwnSumMax) OwnSumMax = VecStats(2,i);
             if (VecStats(2,i) < OwnSumMin) OwnSumMin = VecStats(2,i);
+            if (VecStats(4,i) > totMax) totMax = VecStats(4,i);
+            if (VecStats(4,i) < totMin) totMin = VecStats(4,i);
             vSum += VecStats(2,i);
         }
     }else{
@@ -756,14 +755,19 @@ int orbital::print_size_nodes(const OrbitalVector &Phi, char* txt, bool all) {
         if (VecStats(1,i) < vMin) vMin = VecStats(1,i);
         if (VecStats(2,i) > OwnSumMax) OwnSumMax = VecStats(2,i);
         if (VecStats(2,i) < OwnSumMin) OwnSumMin = VecStats(2,i);
+        if (VecStats(4,i) > totMax) totMax = VecStats(4,i);
+        if (VecStats(4,i) < totMin) totMin = VecStats(4,i);
         vSum += VecStats(2,i);
     }
+    totMax *= 4.0/(1024.0);
+    totMin *= 4.0/(1024.0);
     if(mpi::orb_rank==0)std::cout<<"Total orbvec "<<(int)vSum/(1024)<<", ";
     if(mpi::orb_rank==0)std::cout<<"Av/MPI "<<(int)vSum/(1024)/mpi::orb_size<<", ";
     if(mpi::orb_rank==0)std::cout<<"Max/MPI "<<(int)OwnSumMax/(1024)<<", ";
     if(mpi::orb_rank==0)std::cout<<"Max/orb "<<(int)vMax/(1024)<<", ";
     if(mpi::orb_rank==0)std::cout<<"Min/orb "<<(int)vMin/(1024)<<", ";
-    if(mpi::orb_rank==0)std::cout<<"Total master "<<(int)(Printer::printMem("",true)*4.0/(1024.0))<<" MB"<<std::endl;
+    if(mpi::orb_rank==0 and all )std::cout<<"Total max "<<(int)totMax<<", Total min "<<(int)totMin<<" MB"<<std::endl;
+    if(mpi::orb_rank==0 and not all )std::cout<<"Total master "<<(int)totMax<<" MB"<<std::endl;
 
     return vSum;
 }
