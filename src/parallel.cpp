@@ -32,7 +32,7 @@ int orb_rank = 0;
 int orb_size = 1;
 int share_rank = 0;
 int share_size = 1;
-int sh_group_rank = 0;
+int sh_group_rank=0;
 
 MPI_Comm comm_orb;
 MPI_Comm comm_share;
