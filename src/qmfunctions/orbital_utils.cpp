@@ -690,8 +690,8 @@ int orbital::get_size_nodes(const OrbitalVector &Phi, IntVector &sNodes) {
     int totsize = 0;
     for (int i = 0; i < nOrbs; i++) {
         if (Phi[i].hasReal()) {
-            double fac = Phi[i].real().getKp1_d() * 8;                       //number of coeff in one node
-            fac *= sizeof(double);                                           // Number of Bytes in one node
+            double fac = Phi[i].real().getKp1_d() * 8;                                  //number of coeff in one node
+            fac *= sizeof(double);                                                      // Number of Bytes in one node
             sNodes[i] = static_cast<int>(fac / 1024 * Phi[i].getNNodes(NUMBER::Total)); //kBytes in one orbital
             totsize += sNodes[i];
         }
@@ -709,7 +709,7 @@ int orbital::get_size_nodes(const OrbitalVector &Phi, IntVector &sNodes) {
 * usage among all MPI
 *
 */
-    int orbital::print_size_nodes(const OrbitalVector &Phi, const std::string txt, bool all, int printLevl) {
+int orbital::print_size_nodes(const OrbitalVector &Phi, const std::string txt, bool all, int printLevl) {
     int nOrbs = Phi.size();
     IntVector sNodes = IntVector::Zero(nOrbs);
     int sVec = get_size_nodes(Phi, sNodes);
@@ -766,8 +766,10 @@ int orbital::get_size_nodes(const OrbitalVector &Phi, IntVector &sNodes) {
     printout(printLevl, ", Max/MPI " << static_cast<int>(OwnSumMax / 1024));
     printout(printLevl, ", Max/orb " << static_cast<int>(vMax / 1024));
     printout(printLevl, ", Min/orb " << static_cast<int>(vMin / 1024));
-    if ( all ) println(printLevl, ", Total max " << static_cast<int>(totMax) << ", Total min " << static_cast<int>(totMin) << " MB");
-    if ( not all ) println(printLevl, ", Total master " << static_cast<int>(totMax) << " MB");
+    if (all)
+        println(printLevl,
+                ", Total max " << static_cast<int>(totMax) << ", Total min " << static_cast<int>(totMin) << " MB");
+    if (not all) println(printLevl, ", Total master " << static_cast<int>(totMax) << " MB");
     return vSum;
 }
 
