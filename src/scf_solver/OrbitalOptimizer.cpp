@@ -65,7 +65,7 @@ OrbitalOptimizer::OrbitalOptimizer(Accelerator *k)
  * care of externally (do not delete until SCF goes out of scope).
  */
 void OrbitalOptimizer::setup(FockOperator &F, OrbitalVector &Phi, ComplexMatrix &F_mat) {
-    this->fMat_n=&F_mat;
+    this->fMat_n=&F_mat;//GGG
     this->fOper_n = &F;
     this->orbitals_n = &Phi;
 }
