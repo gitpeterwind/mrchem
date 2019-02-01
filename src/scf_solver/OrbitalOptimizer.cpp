@@ -118,9 +118,10 @@ bool OrbitalOptimizer::optimize() {
     double err_t = 1.0;
     double err_p = 1.0;
 
+    orbital::print_size_nodes(Phi_n,"before loop setup");
     F.setup(orb_prec);
     F_mat = F(Phi_n, Phi_n);
-
+    orbital::print_size_nodes(Phi_n,"before loop start");
     int nIter = 0;
     bool converged = false;
     while (nIter++ < this->maxIter or this->maxIter < 0) {
@@ -140,6 +141,7 @@ bool OrbitalOptimizer::optimize() {
             F.rotate(U_mat);
             if (useKAIN()) this->kain->clear();
         }
+        orbital::print_size_nodes(Phi_n,"after localization");
         // Compute electronic energy
         double E = calcProperty();
         this->property.push_back(E);
@@ -147,15 +149,23 @@ bool OrbitalOptimizer::optimize() {
         // Apply Helmholtz operator
         HelmholtzVector H(orb_prec, F_mat.real().diagonal());
         OrbitalVector Psi = H(F_mat, Phi_n);
+        //        ComplexMatrix L_mat = H.getLambdaMatrix();
+        //OrbitalVector Psi = orbital::rotate(L_mat - F_mat, Phi_n);
+        orbital::print_size_nodes(Psi,"after Helmholtz Phi_n pplication");
         OrbitalVector Phi_np1 = H(V, Phi_n, Psi);
+        orbital::print_size_nodes(Phi_np1,"after Helmholtz Psi application");
+
         Psi.clear();
         F.clear();
+        orbital::print_size_nodes(Phi_np1,"after clear");
 
         ComplexMatrix U_mat = orbital::orthonormalize(orb_prec, Phi_np1);
         F_mat = U_mat * F_mat * U_mat.adjoint();
+        orbital::print_size_nodes(Phi_np1,"after orthonormalize");
 
         // Compute orbital updates
         OrbitalVector dPhi_n = orbital::add(1.0, Phi_np1, -1.0, Phi_n);
+        orbital::print_size_nodes(dPhi_n,"after update");
         Phi_np1.clear();
 
         // Employ KAIN accelerator
@@ -180,6 +190,7 @@ bool OrbitalOptimizer::optimize() {
         // Compute Fock matrix
         F.setup(orb_prec);
         F_mat = F(Phi_n, Phi_n);
+        orbital::print_size_nodes(Phi_n,"after Fock setup");
 
         // Finalize SCF cycle
         timer.stop();

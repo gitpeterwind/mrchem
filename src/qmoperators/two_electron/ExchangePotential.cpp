@@ -110,7 +110,6 @@ Orbital ExchangePotential::dagger(Orbital inp) {
  */
 Orbital ExchangePotential::calcExchange(Orbital phi_p) {
     Timer timer;
-
     double prec = this->apply_prec;
     OrbitalVector &Phi = *this->orbitals;
     mrcpp::PoissonOperator &P = *this->poisson;
@@ -176,6 +175,7 @@ void ExchangePotential::setupInternal(double prec) {
 
     OrbitalVector &Phi = *this->orbitals;
     OrbitalVector &Ex = this->exchange;
+    orbital::print_size_nodes(Ex,"exchange in");
 
     Timer timer;
     // Diagonal must come first because it's NOT in-place
@@ -229,7 +229,7 @@ void ExchangePotential::setupInternal(double prec) {
 
     mpi::allreduce_vector(this->tot_norms, mpi::comm_orb);  //to be checked
     mpi::allreduce_matrix(this->part_norms, mpi::comm_orb); //to be checked
-
+    orbital::print_size_nodes(Ex,"Exchange after setup Internal");
     timer.stop();
     double t = timer.getWallTime();
     Printer::printTree(0, "Hartree-Fock exchange", n, t);

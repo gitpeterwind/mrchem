@@ -146,6 +146,7 @@ void density::compute(double prec, Density &rho, OrbitalVector &Phi, int spin) {
     mpi::reduce_function(part_prec, rho_loc, mpi::comm_orb);
     if (mpi::grand_master()) {
         // If numerically exact the grid is huge at this point
+        std::cout<<"size density "<<(int)1.0*rho_loc.real().getKp1_d()*8*8*rho_loc.getNNodes(NUMBER::Total)/(1024*1024)<<" MB"<<std::endl;
         if (mpi::numerically_exact) rho_loc.crop(add_prec);
     }
 

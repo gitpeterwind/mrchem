@@ -80,6 +80,7 @@ int start_index(const OrbitalVector &Phi, int spin);
 int get_n_nodes(const OrbitalVector &Phi);
 int get_size_nodes(const OrbitalVector &Phi, IntVector &sNodes);
 int print_size_nodes(const OrbitalVector &Phi, const std::string txt= "", bool all = true, int printLevl = 0);
+
 bool orbital_vector_is_sane(const OrbitalVector &Phi);
 
 void set_spins(OrbitalVector &Phi, const IntVector &spins);
