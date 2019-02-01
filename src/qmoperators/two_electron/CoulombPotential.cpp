@@ -24,9 +24,11 @@ namespace mrchem {
  * QMPotential is uninitialized at this point and will be computed at setup.
  */
 
-CoulombPotential::CoulombPotential(PoissonOperator *P)
+CoulombPotential::CoulombPotential(PoissonOperator *P, OrbitalVector *Phi)
         : QMPotential(1, mpi::share_coul_pot)
+        , local(mpi::local_coul_pot)
         , density(mpi::share_coul_dens)
+        , orbitals(Phi)
         , poisson(P) {}
 
 /** @brief prepare operator for application
@@ -44,8 +46,14 @@ CoulombPotential::CoulombPotential(PoissonOperator *P)
 void CoulombPotential::setup(double prec) {
     if (isSetup(prec)) return;
     setApplyPrec(prec);
-    setupDensity(prec);
-    setupPotential(prec);
+    if (useLocal()) {
+        setupLocalDensity(prec);
+        QMFunction V = setupLocalPotential(prec);
+        allreducePotential(prec, V);
+    } else {
+        setupDensity(prec);
+        setupPotential(prec);
+    }
 }
 
 /** @brief clear operator after application
@@ -89,6 +97,70 @@ void CoulombPotential::setupPotential(double prec) {
     int n = V.getNNodes(NUMBER::Total);
     double t = timer.getWallTime();
     Printer::printTree(0, "Coulomb potential", n, t);
+}
+
+/** @brief compute Coulomb potential
+ *
+ * @param prec: apply precision
+ *
+ * This will compute the Coulomb potential by application o the Poisson operator
+ * to the precomputed electron density.
+ */
+QMFunction CoulombPotential::setupLocalPotential(double prec) {
+    if (this->poisson == nullptr) MSG_ERROR("Poisson operator not initialized");
+
+    PoissonOperator &P = *this->poisson;
+    OrbitalVector &Phi = *this->orbitals;
+    QMFunction &rho = this->density;
+
+    // Adjust precision by system size
+    double abs_prec = prec / orbital::get_electron_number(Phi);
+
+    Timer timer;
+    QMFunction V(false);
+    V.alloc(NUMBER::Real);
+    mrcpp::apply(abs_prec, V.real(), P, rho.real());
+    timer.stop();
+
+    int n = V.getNNodes(NUMBER::Total);
+    double t = timer.getWallTime();
+    Printer::printTree(0, "Coulomb potential", n, t);
+
+    return V;
+}
+
+void CoulombPotential::allreducePotential(double prec, QMFunction &V_loc) {
+    Timer t_com;
+
+    QMFunction &V_tot = *this;
+    OrbitalVector &Phi = *this->orbitals;
+
+    double abs_prec = prec / orbital::get_electron_number(Phi);
+
+    // Add up local contributions into the grand master
+    mpi::reduce_function(abs_prec, V_loc, mpi::comm_orb);
+
+    if (not V_tot.hasReal()) V_tot.alloc(NUMBER::Real);
+    if (V_tot.isShared()) {
+        int tag = 3141;
+        // MPI grand master distributes to shared masters
+        mpi::broadcast_function(V_loc, mpi::comm_sh_group);
+        if (mpi::share_master()) {
+            // MPI shared masters copies the function into final memory
+            mrcpp::copy_grid(V_tot.real(), V_loc.real());
+            mrcpp::copy_func(V_tot.real(), V_loc.real());
+        }
+        // MPI share masters distributes to their sharing ranks
+        mpi::share_function(V_tot, 0, tag, mpi::comm_share);
+    } else {
+        // MPI grand master distributes to all ranks
+        mpi::broadcast_function(V_loc, mpi::comm_orb);
+        // All MPI ranks copies the function into final memory
+        mrcpp::copy_grid(V_tot.real(), V_loc.real());
+        mrcpp::copy_func(V_tot.real(), V_loc.real());
+    }
+    t_com.stop();
+    Printer::printTree(0, "Allreduce potential", V_tot.getNNodes(NUMBER::Total), t_com.getWallTime());
 }
 
 } //namespace mrchem

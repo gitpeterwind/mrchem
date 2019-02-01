@@ -20,6 +20,7 @@ extern bool numerically_exact;
 extern bool share_nuc_pot;
 extern bool share_coul_dens;
 extern bool share_coul_pot;
+extern bool local_coul_pot;
 extern bool share_xc_dens;
 extern bool share_xc_pot;
 extern int shared_memory_size;
@@ -53,8 +54,8 @@ void send_function(QMFunction &func, int dst, int tag, MPI_Comm comm);
 void recv_function(QMFunction &func, int src, int tag, MPI_Comm comm);
 void share_function(QMFunction &func, int src, int tag, MPI_Comm comm);
 
-void reduce_density(double prec, Density &rho, MPI_Comm comm);
-void broadcast_density(Density &rho, MPI_Comm comm);
+void reduce_function(double prec, QMFunction &func, MPI_Comm comm);
+void broadcast_function(QMFunction &func, MPI_Comm comm);
 
 void allreduce_vector(IntVector &vec, MPI_Comm comm);
 void allreduce_vector(DoubleVector &vec, MPI_Comm comm);
