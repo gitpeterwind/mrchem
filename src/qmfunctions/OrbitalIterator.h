@@ -34,6 +34,7 @@ public:
     OrbitalIterator(OrbitalVector &Phi, bool sym = false);
 
     bool next(int max_recv = -1);
+    bool next(const ComplexMatrix &U, double prec = -1.0, int max_recv = -1);
 
     int idx(int i) const { return (this->received_orbital_index)[i]; }
     Orbital &orbital(int i) { return (this->received_orbitals)[i]; }
@@ -44,13 +45,13 @@ public:
     int get_step(int i) const { return (this->rcv_step)[i]; }
     int get_sent_size() const { return this->sent_orbital_index.size(); }
 
+    OrbitalVector *orbitals; // incoming orbitals and original orbitals
 protected:
     const bool symmetric;
     int iter;
     int received_counter; //number of orbitals fetched during this iteration
     int sent_counter;     //number of orbitals sent during this iteration
-    OrbitalVector *orbitals;
-    OrbitalVector received_orbitals;
+    OrbitalVector received_orbitals; // temporary space for orbitals received from other MPI
     std::vector<int> received_orbital_index;  //index of the orbitals received
     std::vector<int> sent_orbital_index;      //indices of the orbitals sent out
     std::vector<int> sent_orbital_mpirank;    //mpi rank (=rankID) of the orbitals sent out

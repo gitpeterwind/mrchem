@@ -189,6 +189,39 @@ OrbitalVector orbital::rotate(const ComplexMatrix &U, OrbitalVector &Phi, double
     return out;
 }
 
+
+/** @brief Orbital transformation out_vec = U*inp_vec
+ *
+ * MPI: Rank distribution of output vector is the same as input vector
+ * Rotation is performed in the OrbitalIterator in blocks and each MPI contribution is summed up here.
+ *
+ */
+OrbitalVector orbital::rotate_local(const ComplexMatrix &U, OrbitalVector &Phi, double prec) {
+    // Multiply all orbitals belonging to this MPI with one block of the rotation matrix U
+    double inter_prec = (mpi::numerically_exact) ? -1.0 : prec;
+    OrbitalVector out = orbital::param_copy(Phi);
+    OrbitalIterator iter(Phi);
+    print_size_nodes(Phi,"rotation in");
+    int deleted = 0;
+    while (iter.next(U, prec)) {
+        for (int j = 0; j < iter.get_size(); j++) {
+            int idx_j = iter.idx(j);
+            Orbital &recv_j = iter.orbital(j);
+            out[idx_j].add(1.0, recv_j); // In place addition
+            deleted += out[idx_j].crop(prec);
+        }
+    }
+    if(mpi::orb_rank==0)std::cout<<"master deleted "<<deleted<<" chunks"<<std::endl;
+    if (mpi::numerically_exact) {
+        for (auto &out_i : out) {
+            if (mpi::my_orb(out_i)) out_i.crop(prec);
+        }
+    }
+    print_size_nodes(out,"rotation out");
+
+    return out;
+}
+
 /** @brief Deep copy
  *
  * New orbitals are constructed as deep copies of the input set.
@@ -484,7 +517,8 @@ ComplexMatrix orbital::localize(double prec, OrbitalVector &Phi, int spin) {
     OrbitalVector Phi_s = orbital::disjoin(Phi, spin);
     ComplexMatrix U = calc_localization_matrix(prec, Phi_s);
     Timer rot_t;
-    Phi_s = orbital::rotate(U, Phi_s, prec);
+     Phi_s = orbital::rotate_local(U, Phi_s, prec);
+     //       Phi_s = orbital::rotate(U, Phi_s, prec);
     Phi = orbital::adjoin(Phi, Phi_s);
     rot_t.stop();
     Printer::printDouble(0, "Rotating orbitals", rot_t.getWallTime(), 5);
