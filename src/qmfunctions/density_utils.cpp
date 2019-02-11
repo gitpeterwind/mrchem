@@ -153,8 +153,8 @@ void density::compute(double prec, Density &rho, OrbitalVector &Phi, int spin) {
     if (rho.isShared()) {
         int tag = 3141;
         // MPI grand master distributes to shared masters
-        mpi::broadcast_function(rho_loc, mpi::comm_sh_group);
         if (mpi::share_master()) {
+            mpi::broadcast_function(rho_loc, mpi::comm_sh_group);
             // MPI shared masters copies the function into final memory
             mrcpp::copy_grid(rho.real(), rho_loc.real());
             mrcpp::copy_func(rho.real(), rho_loc.real());
