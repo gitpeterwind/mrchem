@@ -25,12 +25,9 @@ namespace mrchem {
  * @param[in] Phi vector of orbitals which define the exchange operator
  */
 ExchangePotential::ExchangePotential(PoissonOperator_p P, OrbitalVector_p Phi, bool s)
-        : screen(s)
-        , orbitals(Phi)
+        : orbitals(Phi)
         , poisson(P) {
     int nOrbs = this->orbitals->size();
-    this->tot_norms = DoubleVector::Zero(nOrbs);
-    this->part_norms = DoubleMatrix::Zero(nOrbs, nOrbs);
 }
 
 /** @brief Perform a unitary transformation among the precomputed exchange contributions
@@ -98,9 +95,6 @@ void ExchangePotential::setup(double prec) {
     setApplyPrec(prec);
 
     int nOrbs = this->orbitals->size();
-    if (tot_norms.size() != nOrbs) this->tot_norms = DoubleVector::Zero(nOrbs);
-    if (part_norms.rows() != nOrbs) this->part_norms = DoubleMatrix::Zero(nOrbs, nOrbs);
-    if (part_norms.cols() != nOrbs) this->part_norms = DoubleMatrix::Zero(nOrbs, nOrbs);
 }
 
 /** @brief Clears the Exchange Operator
@@ -227,19 +221,36 @@ void ExchangePotential::setupInternal(double prec) {
 
     // Diagonal must come first because it's NOT in-place
     Timer timer;
-    for (int i = 0; i < Phi.size(); i++) calcInternal(i);
+    for (int i = 0; i < Phi.size(); i++) {
+        Orbital &phi_i = (*this->orbitals)[i];
+        Orbital phi_iii = phi_i.paramCopy();
+        if (mpi::my_orb(phi_i)) { calc_i_Int_jk_P(prec, phi_i, phi_i, phi_i, phi_iii); }
+        this->exchange.push_back(phi_iii);
+    }
 
-    // Off-diagonal must come last because it IS in-place
+    // Off-diagonal
     OrbitalIterator iter(Phi, true); // symmetric iterator
     Orbital ex_rcv;
     while (iter.next(1)) { // one orbital at the time
         if (iter.get_size() > 0) {
             Orbital &phi_i = iter.orbital(0);
-            int idx = iter.idx(0);
+            int idx = iter.idx(0); // index of orbital phi_i
             for (int j = 0; j < Phi.size(); j++) {
                 if (mpi::my_orb(phi_i) and j <= idx) continue; // compute only i<j for own block
                 Orbital &phi_j = (*this->orbitals)[j];
-                if (mpi::my_orb(phi_j)) calcInternal(idx, j, phi_i, phi_j);
+                // if (mpi::my_orb(phi_j)) calcInternal(idx, j, phi_i, phi_j);
+                if (mpi::my_orb(phi_j)) {
+                    Orbital phi_jij;
+                    Orbital phi_iij;
+                    // compute phi_iij and phi_jij in one operation
+                    calc_i_Int_jk_P(prec, phi_i, phi_j, phi_i, phi_iij, &phi_jij);
+                    double i_fac = getSpinFactor(phi_i, phi_j);
+                    double j_fac = getSpinFactor(phi_j, phi_i);
+                    Ex[j].add(j_fac, phi_iij);
+                    phi_iij.release();
+                    Ex[idx].add(i_fac, phi_jij);
+                    phi_jij.release();
+                }
             }
             // must send exchange_i to owner and receive exchange computed by other
             if (iter.get_step(0) and not mpi::my_orb(phi_i))
@@ -269,13 +280,6 @@ void ExchangePotential::setupInternal(double prec) {
     }
 
     // Collect info from the calculation
-    for (int i = 0; i < Phi.size(); i++) {
-        if (mpi::my_orb(Phi[i])) this->tot_norms(i) = Ex[i].norm();
-    }
-
-    mpi::allreduce_vector(this->tot_norms, mpi::comm_orb);  // to be checked
-    mpi::allreduce_matrix(this->part_norms, mpi::comm_orb); // to be checked
-
     auto n = orbital::get_n_nodes(Ex);
     auto m = orbital::get_size_nodes(Ex);
     auto t = timer.elapsed();
@@ -292,71 +296,88 @@ void ExchangePotential::setupInternal_bank(double prec) {
     setApplyPrec(prec);
 
     if (this->exchange.size() != 0) MSG_ERROR("Exchange not properly cleared");
+    auto plevel = Printer::getPrintLevel();
 
     OrbitalVector &Phi = *this->orbitals;
     OrbitalVector &Ex = this->exchange;
 
-    // Diagonal must come first because it's NOT in-place
+    // Initialize this->exchange and compute own diagonal elements
     Timer timer;
-    for (int i = 0; i < Phi.size(); i++) calcInternal(i);
-    if (mpi::grand_master())
+    for (int i = 0; i < Phi.size(); i++) {
+        //      calcInternal(i);
+        Orbital &phi_i = (*this->orbitals)[i];
+        Orbital phi_iii = phi_i.paramCopy();
+        if (mpi::my_orb(phi_i)) { calc_i_Int_jk_P(prec, phi_i, phi_i, phi_i, phi_iii); }
+        this->exchange.push_back(phi_iii);
+    }
+
+    if (mpi::grand_master() and plevel > 1)
         std::cout << " Exchange time diagonal " << (int)((float)timer.elapsed() * 1000) << " ms " << std::endl;
 
-    // 1) Save all orbitals in Bank
+    // Save all orbitals in Bank, so that they can be accessed asynchronously
     Timer timerS;
     for (int i = 0; i < Phi.size(); i++) {
         if (not mpi::my_orb(Phi[i])) continue;
         Orbital &Phi_i = (*this->orbitals)[i];
         mpi::orb_bank.put_orb(i, Phi_i);
     }
-    mpi::barrier(mpi::comm_orb);
+    mpi::barrier(mpi::comm_orb); // for safety, in case old orbitals where stored already
     timerS.stop();
 
+    bool use_sym = true;
     Orbital ex_rcv;
     int N = (int)Phi.size();
-    int count = 0;
     int foundcount = 0;
+    int totsize = 0; // total size (kB) of all tree saved in bank by this process so far (until read)
+    int maxSize = 5000 * 1024 * mpi::bank_size /
+                  mpi::orb_size; // size allowed to be stored before going to the bank for withdrawals (5000 MB).
     for (int j = 0; j < N; j++) {
         if (not mpi::my_orb(Phi[j])) continue; // compute only own j
         for (int i = 0; i < N; i++) {
             if (i == j) continue;
             // compute only half of matrix (in band where i-j < size/2 %size)
-            if (i > j + (N - 1) / 2 and i > j) continue;
-            if (i > j - (N + 1) / 2 and i < j) continue;
+            if (i > j + (N - 1) / 2 and i > j and use_sym) continue;
+            if (i > j - (N + 1) / 2 and i < j and use_sym) continue;
             Orbital phi_i;
             int ss = mpi::orb_bank.get_orb(i, phi_i);
             Orbital &phi_j = (*this->orbitals)[j];
-            //            if (mpi::my_orb(phi_j)) calcInternal(j, i, phi_j, phi_i);
             Orbital phi_jij;
             Orbital phi_iij;
             if (mpi::my_orb(phi_j)) {
+                if (use_sym) {
+                    // compute phi_iij and phi_jij in one operation
+                    calc_i_Int_jk_P(prec, phi_i, phi_j, phi_i, phi_iij, &phi_jij);
+                } else {
+                    // compute only own contributions (phi_jij is not computed)
+                    calc_i_Int_jk_P(prec, phi_i, phi_j, phi_i, phi_iij);
+                }
                 double j_fac = getSpinFactor(phi_j, phi_i);
-                // calcInternal_test(j, i, phi_j, phi_i,phi_iij, phi_jij);
-                calc_i_Int_jk_P(prec, phi_i, phi_j, phi_i, phi_iij, &phi_jij);
                 Ex[j].add(j_fac, phi_iij);
-                phi_iij.release();
+                phi_iij.free(NUMBER::Total);
 
                 if (phi_jij.getNNodes(NUMBER::Total) > 0) {
-                    // must store exchange_i
                     if (not mpi::my_orb(Phi[i])) {
-                        // if(not mpi::my_orb(Phi[i]) and Ex[i].getNNodes(NUMBER::Total) > 0){
+                        // must store contribution to exchange_i in bank
                         timerS.resume();
-                        //               mpi::orb_bank.put_orb(i+(j+1)*N, Ex[i]);
-                        //               Ex[i].free(NUMBER::Total);
-                        timerS.stop();
+                        totsize += phi_jij.real().getSizeNodes();
                         mpi::orb_bank.put_orb(i + (j + 1) * N, phi_jij);
-                        phi_jij.release();
+                        phi_jij.free(NUMBER::Total);
+                        timerS.stop();
                     } else {
+                        // must add contribution to exchange_i
                         double i_fac = getSpinFactor(phi_i, phi_j);
                         Ex[i].add(i_fac, phi_jij);
-                        phi_jij.release();
+                        phi_jij.free(NUMBER::Total);
                     }
                 }
             }
-            count++;
-            if (count % 100 == 0) {
+            // Periodically the bank is visited and all contributions to own exchange that are stored there
+            // and ready to use are fetched, added to exchange (and deleted from bank).
+            // This must not be done too often for not waisting time, but often enough so that the bank does not fill
+            // too much.
+            if (totsize > maxSize) { // rough estimate of how full the bank is
                 timerS.resume();
-                // regularly fetch available exchange computed by other, so as to not overload the bank.
+                totsize = 0; // reset counter
                 for (int jj = 0; jj < N; jj++) {
                     if (not mpi::my_orb(Phi[jj])) continue; // compute only own j
                     for (int ii = 0; ii < N; ii++) {
@@ -373,21 +394,21 @@ void ExchangePotential::setupInternal_bank(double prec) {
                     Ex[jj].real().crop(prec);
                 }
                 ex_rcv.free(NUMBER::Total);
-                if (mpi::grand_master())
+                if (mpi::grand_master() and plevel > 1)
                     std::cout << " FETCHED " << foundcount << " Exchange contributions from bank "
                               << (int)((float)timerS.elapsed() * 1000) << " ms " << std::endl;
                 timerS.stop();
             }
         }
     }
-    if (mpi::grand_master())
+    if (mpi::grand_master() and plevel > 1)
         std::cout << " Time exchanges compute " << (int)((float)timer.elapsed() * 1000) << " ms " << std::endl;
     mpi::barrier(mpi::comm_orb);
-    if (mpi::grand_master())
+    if (mpi::grand_master() and plevel > 1)
         std::cout << " Time exchanges all compute " << (int)((float)timer.elapsed() * 1000) << " ms " << std::endl;
     timerS.resume();
-    for (int j = 0; j < N; j++) {
-        if (not mpi::my_orb(Phi[j])) continue; // compute only own j
+    for (int j = 0; j < N and use_sym; j++) {  // If symmetri is not used, there is nothing to fetch in bank
+        if (not mpi::my_orb(Phi[j])) continue; // fetch only own j
         for (int i = 0; i < N; i++) {
             if (i == j) continue;
             if (mpi::my_orb(Phi[i])) continue; // fetch only other's i
@@ -402,19 +423,13 @@ void ExchangePotential::setupInternal_bank(double prec) {
         Ex[j].real().crop(prec);
         ex_rcv.free(NUMBER::Total);
     }
-    if (mpi::grand_master())
+    if (mpi::grand_master() and plevel > 1)
         std::cout << " fetched in total " << foundcount << " Exchange contributions from bank " << std::endl;
     timerS.stop();
-    if (mpi::grand_master())
+    if (mpi::grand_master() and plevel > 1)
         std::cout << " Time send/rcv exchanges " << (int)((float)timerS.elapsed() * 1000) << " ms " << std::endl;
-    // Collect info from the calculation
-    for (int i = 0; i < Phi.size(); i++) {
-        if (mpi::my_orb(Phi[i])) this->tot_norms(i) = Ex[i].norm();
-    }
-    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
 
-    mpi::allreduce_vector(this->tot_norms, mpi::comm_orb);  // to be checked
-    mpi::allreduce_matrix(this->part_norms, mpi::comm_orb); // to be checked
+    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
 
     auto n = orbital::get_n_nodes(Ex);
     auto m = orbital::get_size_nodes(Ex);
@@ -432,7 +447,7 @@ void ExchangePotential::calcInternal(int i) {
     Orbital &phi_i = (*this->orbitals)[i];
 
     if (mpi::my_orb(phi_i)) {
-        double prec = std::min(getScaledPrecision(i, i), 1.0e-1);
+        double prec = this->apply_prec;
         mrcpp::PoissonOperator &P = *this->poisson;
 
         // compute phi_ii = phi_i^dag * phi_i
@@ -455,288 +470,12 @@ void ExchangePotential::calcInternal(int i) {
         Orbital phi_iii = phi_i.paramCopy();
         qmfunction::multiply(phi_iii, phi_i, V_ii, prec);
         phi_iii.rescale(1.0 / phi_i.squaredNorm());
-        this->part_norms(i, i) = phi_iii.norm();
         this->exchange.push_back(phi_iii);
     } else {
         // put empty orbital to fill the exchange vector
         Orbital phi_iii = phi_i.paramCopy();
         this->exchange.push_back(phi_iii);
     }
-}
-
-/** @brief computes the off-diagonal part of the exchange potential
- *
- *  \param[in] i first orbital index
- *  \param[in] j second orbital index
- *
- * The off-diagonal terms K_ij and K_ji are computed.
- */
-void ExchangePotential::calcInternal(int i, int j, Orbital &phi_i, Orbital &phi_j) {
-    mrcpp::PoissonOperator &P = *this->poisson;
-    OrbitalVector &Phi = *this->orbitals;
-    OrbitalVector &Ex = this->exchange;
-    Timer timer;
-
-    if (i == j) MSG_ABORT("Cannot handle diagonal term");
-    if (Ex.size() != Phi.size()) MSG_ABORT("Size mismatch");
-    if (phi_i.hasImag() or phi_j.hasImag()) MSG_ABORT("Orbitals must be real");
-
-    double i_fac = getSpinFactor(phi_i, phi_j);
-    double j_fac = getSpinFactor(phi_j, phi_i);
-
-    double thrs = mrcpp::MachineZero;
-    if (std::abs(i_fac) < thrs or std::abs(j_fac) < thrs) return;
-
-    double prec = this->apply_prec;
-    prec = std::min(prec, 1.0e-1); // very low precision does not work properly
-
-    // compute phi_ij = phi_i^dag * phi_j (dagger NOT used, orbitals must be real!)
-    Timer timermult;
-    Orbital phi_ij = phi_i.paramCopy();
-    double precf = prec;
-    phi_ij.alloc(NUMBER::Real);
-    //    qmfunction::multiply(phi_ij, phi_i, phi_j, prec);
-    mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true);
-    double norma = phi_ij.norm();
-    int N0 = phi_ij.getNNodes(NUMBER::Total);
-    timermult.stop();
-
-    if (phi_ij.norm() < prec) {
-        phi_ij.release();
-        return;
-    }
-    Timer timerd;
-    Orbital phi_ii = phi_i.paramCopy();
-    Orbital phi_jj = phi_j.paramCopy();
-    phi_ii.alloc(NUMBER::Real);
-    // phi_jj.alloc(NUMBER::Real);
-    mrcpp::copy_grid(phi_ii.real(), phi_i.real());
-    mrcpp::copy_func(phi_ii.real(), phi_i.real());
-    // mrcpp::copy_grid(phi_jj.real(), phi_j.real());
-
-    // mrcpp::multiply(precf, phi_ii.real(), 1.0, phi_i.real(), phi_i.real(), 0, false);
-    // mrcpp::multiply(precf, phi_jj.real(), 1.0, phi_j.real(), phi_j.real(), 0, false);
-    // mrcpp::copy_grid(phi_ii.real(), phi_i.real());
-    // mrcpp::copy_func(phi_ii.real(), phi_i.real());
-    // mrcpp::phi_ii.real().square();
-    // phi_ii.add(1.0, phi_jj);
-
-    phi_ii.absadd(1.0, phi_j);
-    phi_ii.real().makeMaxSquareNorms();
-    int N1 = phi_ii.getNNodes(NUMBER::Total);
-    timerd.stop();
-
-    // compute V_ij = P[phi_ij]
-    Orbital V_ij = phi_i.paramCopy();
-    Orbital V_ji = phi_i.paramCopy();
-    Timer timerV;
-    precf = prec * 0.2;
-    precf = prec * 10;
-    precf = std::min(precf, 1.0e-1); // very low precision does not work properly
-    if (phi_ij.hasReal()) {
-        V_ij.alloc(NUMBER::Real);
-        // V_ji.alloc(NUMBER::Real);
-        // mrcpp::apply(prec, V_ij.real(), P, phi_ij.real());
-        // mrcpp::apply(precf, V_ij.real(), P, phi_ij.real(), -1, true);
-        // use density weighted precision
-        mrcpp::apply(precf, V_ij.real(), P, phi_ij.real(), phi_ii.real(), -1, true);
-        // std::cout<<mpi::orb_rank<<" "<<i<<" "<<j<<" applyok "<<std::endl;
-    }
-    double normV = V_ij.norm();
-    timerV.stop();
-    int N2 = V_ij.getNNodes(NUMBER::Total);
-    if (phi_ij.hasImag()) {
-        MSG_ABORT("Orbitals must be real");
-        V_ij.alloc(NUMBER::Imag);
-        mrcpp::apply(prec, V_ij.imag(), P, phi_ij.imag());
-    }
-    phi_ij.release();
-
-    // compute phi_jij = phi_j * V_ij
-    Timer timermult2;
-    precf = prec;
-    Orbital phi_jij = phi_j.paramCopy();
-    phi_jij.alloc(NUMBER::Real);
-    mrcpp::copy_grid(phi_jij.real(), phi_j.real());
-    // qmfunction::multiply(phi_jij, phi_j, V_ij, prec);
-    mrcpp::multiply(precf, phi_jij.real(), 1.0, phi_j.real(), V_ij.real(), -1, true);
-    int N3 = phi_jij.getNNodes(NUMBER::Total);
-    phi_jij.rescale(1.0 / phi_j.squaredNorm());
-    double normjij = phi_jij.norm();
-    this->part_norms(j, i) = phi_jij.norm();
-    timermult2.stop();
-
-    // compute phi_iij = phi_i * V_ij
-    Timer timermult3;
-    Orbital phi_iij = phi_i.paramCopy();
-    phi_iij.alloc(NUMBER::Real);
-    mrcpp::copy_grid(phi_iij.real(), phi_i.real());
-    mrcpp::multiply(precf, phi_iij.real(), 1.0, phi_i.real(), V_ij.real(), -1, true);
-    int N4 = phi_iij.getNNodes(NUMBER::Total);
-    timermult3.stop();
-    phi_iij.rescale(1.0 / phi_i.squaredNorm());
-    this->part_norms(i, j) = phi_iij.norm();
-    V_ij.release();
-    V_ji.release();
-    double normiij = phi_iij.norm();
-
-    // compute x_i += phi_jij
-    Ex[i].add(i_fac, phi_jij);
-    phi_jij.release();
-
-    // compute x_j += phi_iij
-    Ex[j].add(j_fac, phi_iij);
-    phi_iij.release();
-    if (mpi::grand_master())
-        std::cout << i << " " << j << " prec " << prec << " time " << (int)((float)timer.elapsed() * 1000) << " ms "
-                  << " mult1:" << (int)((float)timermult.elapsed() * 1000)
-                  << " dens:" << (int)((float)timerd.elapsed() * 1000)
-                  << " Pot:" << (int)((float)timerV.elapsed() * 1000)
-                  << " mult2:" << (int)((float)timermult2.elapsed() * 1000) << " "
-                  << (int)((float)timermult3.elapsed() * 1000) << " Nnodes: " << N0 << " " << N1 << " " << N2 << " "
-                  << N3 << " " << N4 << " norms " << norma << " " << normV << " " << normjij << "  " << normiij
-                  << std::endl;
-}
-
-/** @brief computes the off-diagonal part of the exchange potential
- *
- *  \param[in] i first orbital index
- *  \param[in] j second orbital index
- *
- * The off-diagonal terms K_ij and K_ji are computed.
- */
-void ExchangePotential::calcInternal_test(int i,
-                                          int j,
-                                          Orbital &phi_i,
-                                          Orbital &phi_j,
-                                          Orbital &phi_jij,
-                                          Orbital &phi_iij) {
-    mrcpp::PoissonOperator &P = *this->poisson;
-    OrbitalVector &Phi = *this->orbitals;
-    OrbitalVector &Ex = this->exchange;
-    Timer timer;
-
-    if (i == j) MSG_ABORT("Cannot handle diagonal term");
-    if (Ex.size() != Phi.size()) MSG_ABORT("Size mismatch");
-    if (phi_i.hasImag() or phi_j.hasImag()) MSG_ABORT("Orbitals must be real");
-
-    double i_fac = getSpinFactor(phi_i, phi_j);
-    double j_fac = getSpinFactor(phi_j, phi_i);
-    phi_iij.alloc(NUMBER::Real);
-    phi_jij.alloc(NUMBER::Real);
-
-    double thrs = mrcpp::MachineZero;
-    if (std::abs(i_fac) < thrs or std::abs(j_fac) < thrs) return;
-
-    double prec = this->apply_prec;
-    prec = std::min(prec, 1.0e-1); // very low precision does not work properly
-
-    // compute phi_ij = phi_i^dag * phi_j (dagger NOT used, orbitals must be real!)
-    Timer timermult;
-    Orbital phi_ij = phi_i.paramCopy();
-    double precf = prec;
-    phi_ij.alloc(NUMBER::Real);
-    //    qmfunction::multiply(phi_ij, phi_i, phi_j, prec);
-    mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true);
-    double norma = phi_ij.norm();
-    int N0 = phi_ij.getNNodes(NUMBER::Total);
-    timermult.stop();
-
-    if (phi_ij.norm() < prec) {
-        phi_ij.release();
-        return;
-    }
-    Timer timerd;
-    Orbital phi_ii = phi_i.paramCopy();
-    Orbital phi_jj = phi_j.paramCopy();
-    phi_ii.alloc(NUMBER::Real);
-    // phi_jj.alloc(NUMBER::Real);
-    mrcpp::copy_grid(phi_ii.real(), phi_i.real());
-    mrcpp::copy_func(phi_ii.real(), phi_i.real());
-    // mrcpp::copy_grid(phi_jj.real(), phi_j.real());
-
-    // mrcpp::multiply(precf, phi_ii.real(), 1.0, phi_i.real(), phi_i.real(), 0, false);
-    // mrcpp::multiply(precf, phi_jj.real(), 1.0, phi_j.real(), phi_j.real(), 0, false);
-    // mrcpp::copy_grid(phi_ii.real(), phi_i.real());
-    // mrcpp::copy_func(phi_ii.real(), phi_i.real());
-    // mrcpp::phi_ii.real().square();
-    // phi_ii.add(1.0, phi_jj);
-
-    phi_ii.absadd(1.0, phi_j);
-    phi_ii.real().makeMaxSquareNorms();
-    int N1 = phi_ii.getNNodes(NUMBER::Total);
-    timerd.stop();
-
-    // compute V_ij = P[phi_ij]
-    Orbital V_ij = phi_i.paramCopy();
-    Orbital V_ji = phi_i.paramCopy();
-    Timer timerV;
-    precf = prec * 0.2;
-    precf = prec * 10;
-    precf = std::min(precf, 1.0e-1); // very low precision does not work properly
-    if (phi_ij.hasReal()) {
-        V_ij.alloc(NUMBER::Real);
-        // V_ji.alloc(NUMBER::Real);
-        // mrcpp::apply(prec, V_ij.real(), P, phi_ij.real());
-        // mrcpp::apply(precf, V_ij.real(), P, phi_ij.real(), -1, true);
-        // use density weighted precision
-        mrcpp::apply(precf, V_ij.real(), P, phi_ij.real(), phi_ii.real(), -1, true);
-        // std::cout<<mpi::orb_rank<<" "<<i<<" "<<j<<" applyok "<<std::endl;
-    }
-    double normV = V_ij.norm();
-    timerV.stop();
-    int N2 = V_ij.getNNodes(NUMBER::Total);
-    if (phi_ij.hasImag()) {
-        MSG_ABORT("Orbitals must be real");
-        V_ij.alloc(NUMBER::Imag);
-        mrcpp::apply(prec, V_ij.imag(), P, phi_ij.imag());
-    }
-    phi_ij.release();
-
-    // compute phi_jij = phi_j * V_ij
-    Timer timermult2;
-    precf = prec;
-    //    Orbital phi_jij = phi_j.paramCopy();
-    // phi_jij.alloc(NUMBER::Real);
-    mrcpp::copy_grid(phi_jij.real(), phi_j.real());
-    // qmfunction::multiply(phi_jij, phi_j, V_ij, prec);
-    mrcpp::multiply(precf, phi_jij.real(), 1.0, phi_j.real(), V_ij.real(), -1, true);
-    int N3 = phi_jij.getNNodes(NUMBER::Total);
-    phi_jij.rescale(1.0 / phi_j.squaredNorm());
-    double normjij = phi_jij.norm();
-    this->part_norms(j, i) = phi_jij.norm();
-    timermult2.stop();
-
-    // compute phi_iij = phi_i * V_ij
-    Timer timermult3;
-    //    Orbital phi_iij = phi_i.paramCopy();
-    // phi_iij.alloc(NUMBER::Real);
-    mrcpp::copy_grid(phi_iij.real(), phi_i.real());
-    mrcpp::multiply(precf, phi_iij.real(), 1.0, phi_i.real(), V_ij.real(), -1, true);
-    int N4 = phi_iij.getNNodes(NUMBER::Total);
-    timermult3.stop();
-    phi_iij.rescale(1.0 / phi_i.squaredNorm());
-    this->part_norms(i, j) = phi_iij.norm();
-    V_ij.release();
-    V_ji.release();
-    double normiij = phi_iij.norm();
-
-    // compute x_i += phi_jij
-    //    Ex[i].add(i_fac, phi_jij);
-    // phi_jij.release();
-
-    // compute x_j += phi_iij
-    // Ex[j].add(j_fac, phi_iij);
-    // phi_iij.release();
-    if (mpi::grand_master())
-        std::cout << i << " " << j << " prec " << prec << " time " << (int)((float)timer.elapsed() * 1000) << " ms "
-                  << " mult1:" << (int)((float)timermult.elapsed() * 1000)
-                  << " dens:" << (int)((float)timerd.elapsed() * 1000)
-                  << " Pot:" << (int)((float)timerV.elapsed() * 1000)
-                  << " mult2:" << (int)((float)timermult2.elapsed() * 1000) << " "
-                  << (int)((float)timermult3.elapsed() * 1000) << " Nnodes: " << N0 << " " << N1 << " " << N2 << " "
-                  << N3 << " " << N4 << " norms " << norma << " " << normV << " " << normjij << "  " << normiij
-                  << std::endl;
 }
 
 /** @brief computes phi_k*Int(phi_i*phi_j^dag/|r-r'|)
@@ -749,7 +488,7 @@ void ExchangePotential::calcInternal_test(int i,
  * twice)
  *
  * Computes the product of phi_i and complex conjugate of phi_j,
- * then applies the Poisson operator, and multiplies the result by phi_k.
+ * then applies the Poisson operator, and multiplies the result by phi_k (and optionally by phi_j).
  * The result is given in phi_out.
  */
 void ExchangePotential::calc_i_Int_jk_P(double prec,
@@ -761,14 +500,9 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
     mrcpp::PoissonOperator &P = *this->poisson;
 
     Timer timer;
+    auto plevel = Printer::getPrintLevel();
     phi_out_kij.free(NUMBER::Total);
     phi_out_kij = phi_k.paramCopy(); // can be different?
-
-    double i_fac = getSpinFactor(phi_i, phi_j);
-    double j_fac = getSpinFactor(phi_j, phi_i);
-
-    double thrs = mrcpp::MachineZero;
-    if (std::abs(i_fac) < thrs or std::abs(j_fac) < thrs) return;
 
     // compute phi_ij = phi_i * phi_j^dag
     Timer timermult;
@@ -780,9 +514,10 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
         phi_ij.alloc(NUMBER::Imag);
         phi_ij_tmp.alloc(NUMBER::Imag);
     }
-    double precf = prec / 100; // could use other precision locally
-    qmfunction::multiply(phi_ij, phi_i, phi_j, -1.0);
-    /*    if (phi_i.hasReal() and phi_j.hasReal() ) {
+    double precf = prec; // could use other precision locally
+    qmfunction::multiply(phi_ij, phi_i, phi_j.dagger(), -1.0);
+    /* //will use absolute precision... when it is safe
+    if (phi_i.hasReal() and phi_j.hasReal() ) {
         mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true);
     }
     if (phi_i.hasImag() and phi_j.hasImag() ) { // multiply by +1.0 for complex conjugate and i*i
@@ -899,17 +634,10 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
     timermult3.stop();
     V_ij.release();
 
-    // compute x_i += phi_jij
-    // Ex[i].add(i_fac, phi_jij);
-    // phi_jij.release();
-
-    // compute x_j += phi_iij
-    // Ex[j].add(j_fac, phi_iij);
-    // phi_iij.release();
-    if (mpi::grand_master())
-        std::cout << " prec " << prec << " time " << (int)((float)timer.elapsed() * 1000) << " ms "
+    if (mpi::grand_master() and plevel > 1)
+        std::cout << " time " << (int)((float)timer.elapsed() * 1000) << " ms "
                   << " mult1:" << (int)((float)timermult.elapsed() * 1000)
-                  << " dens:" << (int)((float)timerd.elapsed() * 1000)
+                  << " absadd:" << (int)((float)timerd.elapsed() * 1000)
                   << " Pot:" << (int)((float)timerV.elapsed() * 1000)
                   << " mult2:" << (int)((float)timermult2.elapsed() * 1000) << " "
                   << (int)((float)timermult3.elapsed() * 1000) << " Nnodes: " << N0 << " " << N1 << " " << N2 << " "
@@ -940,7 +668,6 @@ int ExchangePotential::testPreComputed(Orbital phi_p) const {
     return out;
 }
 
->>>>>>> working Poisson, uncleaned
 /** @brief scale the relative precision based on norm
  *
  * The internal norms are saved between SCF iterations so that they can
@@ -958,8 +685,6 @@ double ExchangePotential::getScaledPrecision(int i, int j) const {
     return scaled_prec;
 }
 
-<<<<<<< HEAD
-=======
 /** @brief determines the exchange factor to be used in the calculation of the exact exchange
  *
  * @param [in] orb input orbital to which K is applied
