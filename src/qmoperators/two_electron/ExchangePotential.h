@@ -35,11 +35,8 @@ public:
 
     friend class ExchangeOperator;
 
-protected:
-    bool screen;             ///< Apply screening in exchange evaluation
-    DoubleVector tot_norms;  ///< Total norms for use in screening
-    DoubleMatrix part_norms; ///< Partial norms for use in screening
-    OrbitalVector exchange;  ///< Precomputed exchange orbitals from the occupied orbital set
+private:
+    OrbitalVector exchange; ///< Precomputed exchange orbitals from the occupied orbital set
 
     std::shared_ptr<OrbitalVector> orbitals;         ///< Orbitals defining the exchange operator
     std::shared_ptr<mrcpp::PoissonOperator> poisson; ///< Poisson operator to compute orbital contributions
