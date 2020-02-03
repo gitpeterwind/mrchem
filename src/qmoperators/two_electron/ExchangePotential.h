@@ -26,6 +26,13 @@ public:
     ExchangePotential(std::shared_ptr<mrcpp::PoissonOperator> P, std::shared_ptr<OrbitalVector> Phi, bool s = false);
     ~ExchangePotential() override = default;
 
+    void calc_i_Int_jk_P(double prec,
+                         Orbital &phi_i,
+                         Orbital &phi_j,
+                         Orbital &phi_k,
+                         Orbital &phi_out_kij,
+                         Orbital *phi_out_jij = nullptr);
+
     friend class ExchangeOperator;
 
 protected:
@@ -54,9 +61,11 @@ protected:
 
     virtual Orbital calcExchange(Orbital phi_p) = 0;
     virtual void calcInternal(int i) = 0;
-    virtual void calcInternal(int i, int j) = 0;
+    virtual void calcInternal(int i, int j, Orbital &phi_i, Orbital &phi_j) = 0;
     virtual int testPreComputed(Orbital phi_p) const = 0;
     virtual void setupInternal(double prec) = 0;
+    virtual void setupInternal_bank(double prec) = 0;
+    virtual void calcInternal_test(int i, int j, Orbital &phi_i, Orbital &phi_j, Orbital &phi_jij, Orbital &phi_iij);
 };
 
 } // namespace mrchem

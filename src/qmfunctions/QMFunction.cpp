@@ -212,6 +212,56 @@ void QMFunction::add(ComplexDouble c, QMFunction inp) {
     mpi::share_function(out, 0, 9911, mpi::comm_share);
 }
 
+/** @brief In place addition of absolute values.
+ *
+ * Output is extended to union grid.
+ *
+ */
+void QMFunction::absadd(ComplexDouble c, QMFunction inp) {
+    double thrs = mrcpp::MachineZero;
+    bool cHasReal = (std::abs(c.real()) > thrs);
+    bool cHasImag = (std::abs(c.imag()) > thrs);
+    bool outNeedsReal = (cHasReal and inp.hasReal()) or (cHasImag and inp.hasImag());
+    bool outNeedsImag = (cHasReal and inp.hasImag()) or (cHasImag and inp.hasReal());
+
+    QMFunction &out = *this;
+    bool clearReal(false), clearImag(false);
+    if (outNeedsReal and not(out.hasReal())) {
+        out.alloc(NUMBER::Real);
+        clearReal = true;
+    }
+
+    if (outNeedsImag and not(out.hasImag())) {
+        out.alloc(NUMBER::Imag);
+        clearImag = true;
+    }
+
+    bool need_to_add = not(out.isShared()) or mpi::share_master();
+    if (need_to_add) {
+        if (clearReal) out.real().setZero();
+        if (clearImag) out.imag().setZero();
+        if (cHasReal and inp.hasReal()) {
+            while (mrcpp::refine_grid(out.real(), inp.real())) {}
+            out.real().absadd(c.real(), inp.real());
+        }
+        if (cHasReal and inp.hasImag()) {
+            double conj = (inp.conjugate()) ? -1.0 : 1.0;
+            while (mrcpp::refine_grid(out.imag(), inp.imag())) {}
+            out.imag().absadd(conj * c.real(), inp.imag());
+        }
+        if (cHasImag and inp.hasReal()) {
+            while (mrcpp::refine_grid(out.imag(), inp.real())) {}
+            out.imag().absadd(c.imag(), inp.real());
+        }
+        if (cHasImag and inp.hasImag()) {
+            double conj = (inp.conjugate()) ? -1.0 : 1.0;
+            while (mrcpp::refine_grid(out.real(), inp.imag())) {}
+            out.real().absadd(-1.0 * conj * c.imag(), inp.imag());
+        }
+    }
+    mpi::share_function(out, 0, 9912, mpi::comm_share);
+}
+
 /** @brief In place multiply with real scalar. Fully in-place.*/
 void QMFunction::rescale(double c) {
     bool need_to_rescale = not(isShared()) or mpi::share_master();
