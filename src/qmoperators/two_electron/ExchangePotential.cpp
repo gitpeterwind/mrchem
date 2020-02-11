@@ -209,6 +209,7 @@ Orbital ExchangePotential::calcExchange(Orbital phi_p) {
 void ExchangePotential::setupInternal(double prec) {
 
     if (mpi::bank_size > 0) {
+        // use cheaper method using bank
         setupInternal_bank(prec);
         return;
     }
@@ -238,7 +239,6 @@ void ExchangePotential::setupInternal(double prec) {
             for (int j = 0; j < Phi.size(); j++) {
                 if (mpi::my_orb(phi_i) and j <= idx) continue; // compute only i<j for own block
                 Orbital &phi_j = (*this->orbitals)[j];
-                // if (mpi::my_orb(phi_j)) calcInternal(idx, j, phi_i, phi_j);
                 if (mpi::my_orb(phi_j)) {
                     Orbital phi_jij;
                     Orbital phi_iij;
@@ -301,18 +301,19 @@ void ExchangePotential::setupInternal_bank(double prec) {
     OrbitalVector &Phi = *this->orbitals;
     OrbitalVector &Ex = this->exchange;
 
+    double precf = prec / std::sqrt(1.0 * Phi.size()); // since we sum over orbitals
+
     // Initialize this->exchange and compute own diagonal elements
     Timer timer;
     for (int i = 0; i < Phi.size(); i++) {
         //      calcInternal(i);
         Orbital &phi_i = (*this->orbitals)[i];
         Orbital phi_iii = phi_i.paramCopy();
-        if (mpi::my_orb(phi_i)) { calc_i_Int_jk_P(prec, phi_i, phi_i, phi_i, phi_iii); }
+        if (mpi::my_orb(phi_i)) { calc_i_Int_jk_P(precf, phi_i, phi_i, phi_i, phi_iii); }
         this->exchange.push_back(phi_iii);
     }
 
-    if (mpi::grand_master() and plevel > 1)
-        std::cout << " Exchange time diagonal " << (int)((float)timer.elapsed() * 1000) << " ms " << std::endl;
+    println(4, " Exchange time diagonal " << (int)((float)timer.elapsed() * 1000) << " ms ");
 
     // Save all orbitals in Bank, so that they can be accessed asynchronously
     Timer timerS;
@@ -326,7 +327,7 @@ void ExchangePotential::setupInternal_bank(double prec) {
 
     bool use_sym = true;
     Orbital ex_rcv;
-    int N = (int)Phi.size();
+    int N = Phi.size();
     int foundcount = 0;
     int totsize = 0; // total size (kB) of all tree saved in bank by this process so far (until read)
     int maxSize = 5000 * 1024 * mpi::bank_size /
@@ -346,10 +347,10 @@ void ExchangePotential::setupInternal_bank(double prec) {
             if (mpi::my_orb(phi_j)) {
                 if (use_sym) {
                     // compute phi_iij and phi_jij in one operation
-                    calc_i_Int_jk_P(prec, phi_i, phi_j, phi_i, phi_iij, &phi_jij);
+                    calc_i_Int_jk_P(precf, phi_i, phi_j, phi_i, phi_iij, &phi_jij);
                 } else {
                     // compute only own contributions (phi_jij is not computed)
-                    calc_i_Int_jk_P(prec, phi_i, phi_j, phi_i, phi_iij);
+                    calc_i_Int_jk_P(precf, phi_i, phi_j, phi_i, phi_iij);
                 }
                 double j_fac = getSpinFactor(phi_j, phi_i);
                 Ex[j].add(j_fac, phi_iij);
@@ -394,18 +395,16 @@ void ExchangePotential::setupInternal_bank(double prec) {
                     Ex[jj].real().crop(prec);
                 }
                 ex_rcv.free(NUMBER::Total);
-                if (mpi::grand_master() and plevel > 1)
-                    std::cout << " FETCHED " << foundcount << " Exchange contributions from bank "
-                              << (int)((float)timerS.elapsed() * 1000) << " ms " << std::endl;
+                println(4,
+                        " fetched " << foundcount << " Exchange contributions from bank "
+                                    << (int)((float)timerS.elapsed() * 1000) << " ms ");
                 timerS.stop();
             }
         }
     }
-    if (mpi::grand_master() and plevel > 1)
-        std::cout << " Time exchanges compute " << (int)((float)timer.elapsed() * 1000) << " ms " << std::endl;
+    println(3, " Time exchanges compute " << (int)((float)timer.elapsed() * 1000) << " ms ");
     mpi::barrier(mpi::comm_orb);
-    if (mpi::grand_master() and plevel > 1)
-        std::cout << " Time exchanges all compute " << (int)((float)timer.elapsed() * 1000) << " ms " << std::endl;
+    println(3, " Time exchanges all mpi finished " << (int)((float)timer.elapsed() * 1000) << " ms ");
     timerS.resume();
     for (int j = 0; j < N and use_sym; j++) {  // If symmetri is not used, there is nothing to fetch in bank
         if (not mpi::my_orb(Phi[j])) continue; // fetch only own j
@@ -423,11 +422,9 @@ void ExchangePotential::setupInternal_bank(double prec) {
         Ex[j].real().crop(prec);
         ex_rcv.free(NUMBER::Total);
     }
-    if (mpi::grand_master() and plevel > 1)
-        std::cout << " fetched in total " << foundcount << " Exchange contributions from bank " << std::endl;
+    println(4, " fetched in total " << foundcount << " Exchange contributions from bank ");
     timerS.stop();
-    if (mpi::grand_master() and plevel > 1)
-        std::cout << " Time send/rcv exchanges " << (int)((float)timerS.elapsed() * 1000) << " ms " << std::endl;
+    println(4, " Time send/rcv exchanges " << (int)((float)timerS.elapsed() * 1000) << " ms ");
 
     mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
 
@@ -514,25 +511,27 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
         phi_ij.alloc(NUMBER::Imag);
         phi_ij_tmp.alloc(NUMBER::Imag);
     }
-    double precf = prec; // could use other precision locally
-    qmfunction::multiply(phi_ij, phi_i, phi_j.dagger(), -1.0);
-    /* //will use absolute precision... when it is safe
-    if (phi_i.hasReal() and phi_j.hasReal() ) {
-        mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true);
+
+    double precf = prec / 10; // multiplication1 precision
+
+    if (phi_i.hasReal() and phi_j.hasReal()) {
+        mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true, true);
     }
-    if (phi_i.hasImag() and phi_j.hasImag() ) { // multiply by +1.0 for complex conjugate and i*i
-        mrcpp::multiply(precf, phi_ij_tmp.real(), 1.0, phi_i.real(), phi_j.real(), -1, true);
-        phi_ij.real().add(1.0,phi_ij_tmp.real());
+    if (phi_i.hasImag() and phi_j.hasImag()) { // multiply by +1.0 for complex conjugate and i*i
+        mrcpp::multiply(precf, phi_ij_tmp.real(), 1.0, phi_i.real(), phi_j.real(), -1, true, true);
+        phi_ij.real().add(1.0, phi_ij_tmp.real());
     }
-    if (phi_i.hasReal() and phi_j.hasImag() ) { // multiply by -1.0 for complex conjugate of j
-        mrcpp::multiply(precf, phi_ij.imag(), -1.0, phi_i.real(), phi_j.imag(), -1, true);
+    if (phi_i.hasReal() and phi_j.hasImag()) { // multiply by -1.0 for complex conjugate of j
+        mrcpp::multiply(precf, phi_ij.imag(), -1.0, phi_i.real(), phi_j.imag(), -1, true, true);
     }
-    if (phi_i.hasImag() and phi_j.hasReal() ) { // multiply by 1.0 for complex conjugate of j
-        mrcpp::multiply(precf, phi_ij_tmp.imag(), 1.0, phi_i.imag(), phi_j.real(), -1, true);
-        phi_ij.imag().add(1.0,phi_ij_tmp.real());
-        }*/
+    if (phi_i.hasImag() and phi_j.hasReal()) { // multiply by 1.0 for complex conjugate of j
+        mrcpp::multiply(precf, phi_ij_tmp.imag(), 1.0, phi_i.imag(), phi_j.real(), -1, true, true);
+        phi_ij.imag().add(1.0, phi_ij_tmp.real());
+    }
 
     double norma = phi_ij.norm();
+    int Ni = phi_j.getNNodes(NUMBER::Total);
+    int Nj = phi_i.getNNodes(NUMBER::Total);
     int N0 = phi_ij.getNNodes(NUMBER::Total);
     timermult.stop();
 
@@ -543,39 +542,29 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
         return;
     }
 
-    Timer timerd;
-    Orbital phi_opt; // phi_opt is used to optimize the Poisson application
-    qmfunction::deep_copy(phi_opt, phi_k);
+    std::vector<mrcpp::FunctionTree<3> *> phi_opt_vec; // used to steer precision of Poisson application
+    phi_opt_vec.push_back(&phi_k.real());
+    if (phi_k.hasImag()) { phi_opt_vec.push_back(&phi_k.imag()); }
     if (phi_out_jij != nullptr) {
-        // compute abs(phi_k) + abs(phi_j) , to be used to optimize the target grid of Poisson application
-        phi_opt.absadd(1.0, phi_j);
+        phi_opt_vec.push_back(&phi_j.real());
+        if (phi_j.hasImag()) { phi_opt_vec.push_back(&phi_j.imag()); }
     }
-
-    // Sum the imag and real part in the real part
-    // We only use the sum, because the result of Poisson application is to be multiplied by both
-    // the real and imag part of phi_k (and we want to apply Poisson only once)
-    if (phi_opt.hasImag()) phi_opt.real().absadd(1.0, phi_opt.imag());
-
-    // Calculate the maximum of the norms between each node and its descendants
-    phi_opt.real().makeMaxSquareNorms();
-
-    int N1 = phi_opt.getNNodes(NUMBER::Total);
-    timerd.stop();
 
     // compute V_ij = P[phi_ij]
     Orbital V_ij = phi_k.paramCopy();
     Timer timerV;
-    precf = prec * 1; // use other precision locally for Poisson
-    mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true);
+
+    precf = prec * 10; // Poisson application precision.
+
     if (phi_ij.hasReal()) {
         V_ij.alloc(NUMBER::Real);
-        mrcpp::apply(precf, V_ij.real(), P, phi_ij.real(), phi_opt.real(), -1, true);
+        mrcpp::apply(precf, V_ij.real(), P, phi_ij.real(), phi_opt_vec, -1, true);
     }
     if (phi_ij.hasImag()) {
         V_ij.alloc(NUMBER::Imag);
-        mrcpp::apply(precf, V_ij.imag(), P, phi_ij.imag(), phi_opt.real(), -1, true); // NB: phi_opt.real() must be used
+        mrcpp::apply(precf, V_ij.imag(), P, phi_ij.imag(), phi_opt_vec, -1, true); // NB: phi_opt.real() must be used
     }
-    phi_opt.release();
+
     phi_ij.release();
     phi_ij_tmp.release();
     double normV = V_ij.norm();
@@ -584,33 +573,31 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
 
     // compute phi_out_kij = phi_k * V_ij
     Timer timermult2;
-    precf = prec; // could use other precision locally
+
+    precf = prec / 100; // multiplication2 precision.
+
     phi_out_kij = phi_k.paramCopy();
     phi_out_kij.alloc(NUMBER::Real);
-    // force using at least same grid. Otherwise multiplication is not safe
-    mrcpp::copy_grid(phi_out_kij.real(), phi_k.real());
-    mrcpp::multiply(precf, phi_out_kij.real(), 1.0, phi_k.real(), V_ij.real(), -1, true);
+    mrcpp::multiply(precf, phi_out_kij.real(), 1.0, phi_k.real(), V_ij.real(), -1, true, true);
     if (phi_k.hasImag() and V_ij.hasImag()) {
         Orbital phi_tmp = phi_k.paramCopy();
         phi_tmp.alloc(NUMBER::Real);
-        mrcpp::copy_grid(phi_tmp.real(), phi_k.imag());
-        mrcpp::multiply(precf, phi_tmp.real(), 1.0, phi_k.imag(), V_ij.imag(), -1, true);
+        mrcpp::multiply(precf, phi_tmp.real(), 1.0, phi_k.imag(), V_ij.imag(), -1, true, true);
         phi_out_kij.add(-1.0, phi_tmp);
+        phi_tmp.free(NUMBER::Total);
     }
     if (phi_k.hasImag() or V_ij.hasImag()) phi_out_kij.alloc(NUMBER::Imag);
     if (phi_k.hasImag() and V_ij.hasReal()) {
         Orbital phi_tmp = phi_k.paramCopy();
         phi_tmp.alloc(NUMBER::Imag);
-        mrcpp::copy_grid(phi_tmp.imag(), phi_k.imag());
-        mrcpp::multiply(precf, phi_tmp.imag(), 1.0, phi_k.imag(), V_ij.real(), -1, true);
+        mrcpp::multiply(precf, phi_tmp.imag(), 1.0, phi_k.imag(), V_ij.real(), -1, true, true);
         phi_out_kij.imag().add(1.0, phi_tmp.imag());
         phi_tmp.free(NUMBER::Total);
     }
     if (phi_k.hasReal() and V_ij.hasImag()) {
         Orbital phi_tmp = phi_k.paramCopy();
         phi_tmp.alloc(NUMBER::Imag);
-        mrcpp::copy_grid(phi_tmp.imag(), phi_k.real());
-        mrcpp::multiply(precf, phi_tmp.imag(), 1.0, phi_k.real(), V_ij.imag(), -1, true);
+        mrcpp::multiply(precf, phi_tmp.imag(), 1.0, phi_k.real(), V_ij.imag(), -1, true, true);
         phi_out_kij.imag().add(1.0, phi_tmp.imag());
         phi_tmp.free(NUMBER::Total);
     }
@@ -622,27 +609,45 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
     int N4 = 0;
     double normiij = 0.0;
     if (phi_out_jij != nullptr) {
-        if (phi_k.hasImag() or V_ij.hasImag()) NOT_IMPLEMENTED_ABORT;
         // compute phi_out_jij = phi_j * V_ij
         *phi_out_jij = phi_j.paramCopy();
         phi_out_jij->alloc(NUMBER::Real);
-        mrcpp::copy_grid(phi_out_jij->real(), phi_j.real());
-        mrcpp::multiply(precf, phi_out_jij->real(), 1.0, phi_j.real(), V_ij.real(), -1, true);
+        mrcpp::multiply(precf, phi_out_jij->real(), 1.0, phi_j.real(), V_ij.real(), -1, true, true);
         normiij = phi_out_jij->norm();
         N4 = phi_out_jij->getNNodes(NUMBER::Total);
+        if (phi_j.hasImag() and V_ij.hasImag()) {
+            Orbital phi_tmp = phi_j.paramCopy();
+            phi_tmp.alloc(NUMBER::Real);
+            mrcpp::multiply(precf, phi_tmp.real(), 1.0, phi_j.imag(), V_ij.imag(), -1, true, true);
+            phi_out_jij->add(-1.0, phi_tmp);
+            phi_tmp.free(NUMBER::Total);
+        }
+        if (phi_j.hasImag() or V_ij.hasImag()) phi_out_jij->alloc(NUMBER::Imag);
+        if (phi_j.hasImag() and V_ij.hasReal()) {
+            Orbital phi_tmp = phi_j.paramCopy();
+            phi_tmp.alloc(NUMBER::Imag);
+            mrcpp::multiply(precf, phi_tmp.imag(), 1.0, phi_j.imag(), V_ij.real(), -1, true, true);
+            phi_out_jij->imag().add(1.0, phi_tmp.imag());
+            phi_tmp.free(NUMBER::Total);
+        }
+        if (phi_j.hasReal() and V_ij.hasImag()) {
+            Orbital phi_tmp = phi_j.paramCopy();
+            phi_tmp.alloc(NUMBER::Imag);
+            mrcpp::multiply(precf, phi_tmp.imag(), 1.0, phi_j.real(), V_ij.imag(), -1, true, true);
+            phi_out_jij->imag().add(1.0, phi_tmp.imag());
+            phi_tmp.free(NUMBER::Total);
+        }
     }
     timermult3.stop();
     V_ij.release();
 
-    if (mpi::grand_master() and plevel > 1)
-        std::cout << " time " << (int)((float)timer.elapsed() * 1000) << " ms "
-                  << " mult1:" << (int)((float)timermult.elapsed() * 1000)
-                  << " absadd:" << (int)((float)timerd.elapsed() * 1000)
-                  << " Pot:" << (int)((float)timerV.elapsed() * 1000)
-                  << " mult2:" << (int)((float)timermult2.elapsed() * 1000) << " "
-                  << (int)((float)timermult3.elapsed() * 1000) << " Nnodes: " << N0 << " " << N1 << " " << N2 << " "
-                  << N3 << " " << N4 << " norms " << norma << " " << normV << " " << normjij << "  " << normiij
-                  << std::endl;
+    println(4,
+            " time " << (int)((float)timer.elapsed() * 1000) << " ms "
+                     << " mult1:" << (int)((float)timermult.elapsed() * 1000) << " Pot:"
+                     << (int)((float)timerV.elapsed() * 1000) << " mult2:" << (int)((float)timermult2.elapsed() * 1000)
+                     << " " << (int)((float)timermult3.elapsed() * 1000) << " Nnodes: " << Ni << " " << Nj << " " << N0
+                     << " " << N2 << " " << N3 << " " << N4 << " norms " << norma << " " << normV << " " << normjij
+                     << "  " << normiij);
 }
 
 /** @brief Test if a given contribution has been precomputed
