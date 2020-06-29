@@ -35,7 +35,7 @@ public:
 
     friend class ExchangeOperator;
 
-private:
+protected:
     OrbitalVector exchange; ///< Precomputed exchange orbitals from the occupied orbital set
 
     std::shared_ptr<OrbitalVector> orbitals;         ///< Orbitals defining the exchange operator
@@ -58,11 +58,9 @@ private:
 
     virtual Orbital calcExchange(Orbital phi_p) = 0;
     virtual void calcInternal(int i) = 0;
-    virtual void calcInternal(int i, int j, Orbital &phi_i, Orbital &phi_j) = 0;
+    virtual void calcInternal(int i, int j) = 0;
     virtual int testPreComputed(Orbital phi_p) const = 0;
     virtual void setupInternal(double prec) = 0;
-    virtual void setupInternal_bank(double prec) = 0;
-    virtual void calcInternal_test(int i, int j, Orbital &phi_i, Orbital &phi_j, Orbital &phi_jij, Orbital &phi_iij);
 };
 
 } // namespace mrchem
