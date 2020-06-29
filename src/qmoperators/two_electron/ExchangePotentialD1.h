@@ -18,10 +18,7 @@ namespace mrchem {
  * orbitals themselves are allowed to change in between each
  * application. The internal exchange potentials (the operator applied
  * to it's own orbitals) can be precomputed and stored for fast
- * retrieval. Option to use screening based on previous calculations
- * of the internal exchange (make sure that the internal orbitals
- * haven't been significantly changed since the last time the operator
- * was set up, e.g. through an orbital rotation).
+ * retrieval.
  */
 
 class ExchangePotentialD1 final : public ExchangePotential {
@@ -37,7 +34,7 @@ private:
     Orbital calcExchange(Orbital phi_p);
     void calcInternal(int i);
     void calcInternal(int i, int j);
-    void calcInternal(int i, int j, Orbital &phi_i, Orbital &phi_j);
+    void setupInternal_bank(double prec);
 };
 
 } // namespace mrchem
