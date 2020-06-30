@@ -402,9 +402,7 @@ void ExchangePotentialD1::calcInternal(int i, int j) {
     double spinFactor = getSpinFactor(phi_j, phi_i);
 
     double thrs = mrcpp::MachineZero;
-    if (std::abs(spinFactor) < thrs) {
-        return;
-    }
+    if (std::abs(spinFactor) < thrs) { return; }
 
     // set correctly scaled precision for components ij and ji
     double prec = std::min(getScaledPrecision(i, j), getScaledPrecision(j, i));
