@@ -188,9 +188,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
                         // must store contribution to exchange_i in bank
                         timerS.resume();
                         totsize += phi_jij.real().getSizeNodes();
-                        if (phi_jij.norm() > prec) {
-                            mpi::orb_bank.put_orb(i + (j + 1) * N, phi_jij);
-                        }
+                        if (phi_jij.norm() > prec) { mpi::orb_bank.put_orb(i + (j + 1) * N, phi_jij); }
                         phi_jij.free(NUMBER::Total);
                         timerS.stop();
                     } else {
