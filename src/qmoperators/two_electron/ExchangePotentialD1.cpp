@@ -128,7 +128,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
     OrbitalVector &Phi = *this->orbitals;
     OrbitalVector &Ex = this->exchange;
 
-    double precf = prec / std::sqrt(1.0 * Phi.size()); // since we sum over orbitals
+    double precf = prec / std::min(10.0, std::sqrt(1.0 * Phi.size())); // since we sum over orbitals
 
     // Initialize this->exchange and compute own diagonal elements
     Timer timer;
@@ -188,13 +188,17 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
                         // must store contribution to exchange_i in bank
                         timerS.resume();
                         totsize += phi_jij.real().getSizeNodes();
-                        mpi::orb_bank.put_orb(i + (j + 1) * N, phi_jij);
+                        if (phi_jij.norm() > prec) {
+                            mpi::orb_bank.put_orb(i + (j + 1) * N, phi_jij);
+                        }
                         phi_jij.free(NUMBER::Total);
                         timerS.stop();
                     } else {
                         // must add contribution to exchange_i
-                        double i_fac = getSpinFactor(phi_i, phi_j);
-                        Ex[i].add(i_fac, phi_jij);
+                        if (phi_jij.norm() > prec) {
+                            double i_fac = getSpinFactor(phi_i, phi_j);
+                            Ex[i].add(i_fac, phi_jij);
+                        }
                         phi_jij.free(NUMBER::Total);
                     }
                 }
@@ -249,7 +253,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
         Ex[j].real().crop(prec);
         ex_rcv.free(NUMBER::Total);
     }
-    println(4, " fetched in total " << foundcount << " Exchange contributions from bank ");
+    println(3, " fetched in total " << foundcount << " Exchange contributions from bank ");
     timerS.stop();
     println(4, " Time send/rcv exchanges " << (int)((float)timerS.elapsed() * 1000) << " ms ");
 
