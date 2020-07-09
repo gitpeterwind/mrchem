@@ -410,7 +410,8 @@ void Bank::open() {
     while (true) {
         MPI_Recv(&message, 1, MPI_INTEGER, MPI_ANY_SOURCE, MPI_ANY_TAG, mpi::comm_bank, &status);
         if (printinfo)
-            std::cout << mpi::world_rank << " got message " << message << " from " << status.MPI_SOURCE << " size now: "<<deposits.size()<<std::endl;
+            std::cout << mpi::world_rank << " got message " << message <<
+                " from " << status.MPI_SOURCE << " size now: "<<deposits.size()<<std::endl;
         if (message == CLOSE_BANK) {
             if (mpi::is_bankmaster and printinfo) std::cout << "Bank is closing" << std::endl;
             this->clear_bank();
