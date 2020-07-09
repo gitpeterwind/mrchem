@@ -410,7 +410,7 @@ void Bank::open() {
     while (true) {
         MPI_Recv(&message, 1, MPI_INTEGER, MPI_ANY_SOURCE, MPI_ANY_TAG, mpi::comm_bank, &status);
         if (printinfo)
-            std::cout << mpi::world_rank << " got message " << message << " from " << status.MPI_SOURCE << std::endl;
+            std::cout << mpi::world_rank << " got message " << message << " from " << status.MPI_SOURCE << " size now: "<<deposits.size()<<std::endl;
         if (message == CLOSE_BANK) {
             if (mpi::is_bankmaster and printinfo) std::cout << "Bank is closing" << std::endl;
             this->clear_bank();
@@ -424,6 +424,10 @@ void Bank::open() {
         if (message == GETMAXTOTDATA) {
             int maxsize_int = maxsize/1024; // convert into MB
             MPI_Send(&maxsize_int, 1, MPI_INTEGER, status.MPI_SOURCE, 1171, mpi::comm_bank);
+       }
+        if (message == GETTOTDATA) {
+            int maxsize_int = currentsize/1024; // convert into MB
+            MPI_Send(&maxsize_int, 1, MPI_INTEGER, status.MPI_SOURCE, 1172, mpi::comm_bank);
        }
         if (message == GET_ORBITAL or message == GET_ORBITAL_AND_WAIT or message == GET_ORBITAL_AND_DELETE or
             message == GET_FUNCTION or message == GET_DATA) {
@@ -687,6 +691,20 @@ int Bank::get_maxtotalsize() {
         maxtot = std::max(maxtot, datasize);
     }
     return maxtot;
+#endif
+}
+
+std::vector<int>  Bank::get_totalsize() {
+#ifdef HAVE_MPI
+    MPI_Status status;
+    std::vector<int> tot;
+    int datasize;
+    for (int i = 0; i < mpi::bank_size; i++) {
+        MPI_Send(&GETTOTDATA, 1, MPI_INTEGER, mpi::bankmaster[i], 0, mpi::comm_bank);
+        MPI_Recv(&datasize, 1, MPI_INTEGER, mpi::bankmaster[i], 1172, mpi::comm_bank, &status);
+        tot.push_back(datasize);
+    }
+    return tot;
 #endif
 }
 
