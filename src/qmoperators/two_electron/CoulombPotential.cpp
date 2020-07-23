@@ -2,6 +2,7 @@
 #include "MRCPP/MWOperators"
 #include "MRCPP/Printer"
 #include "MRCPP/Timer"
+#include "MRCPP/trees/SerialFunctionTree.h"
 #include "parallel.h"
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/density_utils.h"
@@ -10,6 +11,7 @@
 
 using mrcpp::Printer;
 using mrcpp::Timer;
+
 
 using PoissonOperator = mrcpp::PoissonOperator;
 using PoissonOperator_p = std::shared_ptr<mrcpp::PoissonOperator>;
@@ -123,6 +125,7 @@ QMFunction CoulombPotential::setupLocalPotential(double prec) {
     QMFunction V(false);
     V.alloc(NUMBER::Real);
     mrcpp::apply(abs_prec, V.real(), P, rho.real());
+
     print_utils::qmfunction(2, "Coulomb potential", V, timer);
 
     return V;
@@ -137,6 +140,7 @@ void CoulombPotential::allreducePotential(double prec, QMFunction &V_loc) {
     double abs_prec = prec / orbital::get_electron_number(Phi);
 
     // Add up local contributions into the grand master
+
     mpi::reduce_function(abs_prec, V_loc, mpi::comm_orb);
 
     if (not V_tot.hasReal()) V_tot.alloc(NUMBER::Real);
@@ -148,7 +152,9 @@ void CoulombPotential::allreducePotential(double prec, QMFunction &V_loc) {
             // MPI shared masters copies the function into final memory
             mrcpp::copy_grid(V_tot.real(), V_loc.real());
             mrcpp::copy_func(V_tot.real(), V_loc.real());
+            V_tot.crop(abs_prec);
         }
+
         // MPI share masters distributes to their sharing ranks
         mpi::share_function(V_tot, 0, tag, mpi::comm_share);
     } else {
@@ -158,6 +164,7 @@ void CoulombPotential::allreducePotential(double prec, QMFunction &V_loc) {
         mrcpp::copy_grid(V_tot.real(), V_loc.real());
         mrcpp::copy_func(V_tot.real(), V_loc.real());
     }
+
     print_utils::qmfunction(2, "Allreduce Coulomb", V_tot, t_com);
 }
 
