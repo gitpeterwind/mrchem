@@ -54,8 +54,6 @@ protected:
     using QMOperator::apply;
     using QMOperator::dagger;
 
-    double getScaledPrecision(int i, int j) const;
-
     virtual Orbital calcExchange(Orbital phi_p) = 0;
     virtual void calcInternal(int i) = 0;
     virtual void calcInternal(int i, int j) = 0;

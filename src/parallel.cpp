@@ -142,8 +142,7 @@ void mpi::initialize() {
 void mpi::finalize() {
 #ifdef HAVE_MPI
     if (mpi::bank_size > 0 and mpi::grand_master()){
-        auto plevel = Printer::getPrintLevel();
-        if (plevel > 1) std::cout<<" max data in bank "<<mpi::orb_bank.get_maxtotalsize()<<" MB "<<std::endl;
+        println(1, " max data in bank "<<mpi::orb_bank.get_maxtotalsize()<<" MB ");
         mpi::orb_bank.close();
     }
     MPI_Finalize();
@@ -537,7 +536,8 @@ void Bank::open() {
                         MPI_Send(deposits[ix].data, datasize, MPI_DOUBLE, iqq, queue[iq].id, mpi::comm_bank);
                     }
                 }
-                queue.erase(queue.begin() + iq);
+                queue[iq].clients.clear(); // cannot erase entire queue[iq], because that would require to shift all the id2qu value larger than iq
+                queue[iq].id = -1;
                 id2qu.erase(deposits[ix].id);
             }
         }
@@ -677,17 +677,17 @@ void Bank::close() {
 }
 
 int Bank::get_maxtotalsize() {
+    int maxtot = 0;
 #ifdef HAVE_MPI
     MPI_Status status;
-    int maxtot=0;
     int datasize;
     for (int i = 0; i < mpi::bank_size; i++) {
         MPI_Send(&GETMAXTOTDATA, 1, MPI_INTEGER, mpi::bankmaster[i], 0, mpi::comm_bank);
         MPI_Recv(&datasize, 1, MPI_INTEGER, mpi::bankmaster[i], 1171, mpi::comm_bank, &status);
         maxtot = std::max(maxtot, datasize);
     }
-    return maxtot;
 #endif
+    return maxtot;
 }
 
 
