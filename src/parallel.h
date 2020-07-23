@@ -117,7 +117,7 @@ public:
     ~Bank();
     void open();
     void close();
-    void clear_all(int i, MPI_Comm comm);
+    void clear_all(int i = mpi::orb_rank, MPI_Comm comm = mpi::comm_orb);
     void clear(int ix);
     int put_orb(int id, Orbital &orb);
     int get_orb(int id, Orbital &orb, int wait = 0);

@@ -144,12 +144,12 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
 
     // Save all orbitals in Bank, so that they can be accessed asynchronously
     Timer timerS;
+    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
     for (int i = 0; i < Phi.size(); i++) {
         if (not mpi::my_orb(Phi[i])) continue;
         Orbital &Phi_i = (*this->orbitals)[i];
         mpi::orb_bank.put_orb(i, Phi_i);
     }
-    mpi::barrier(mpi::comm_orb); // for safety, in case old orbitals where stored already
     timerS.stop();
 
     bool use_sym = true;
@@ -167,7 +167,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
             if (i > j + (N - 1) / 2 and i > j and use_sym) continue;
             if (i > j - (N + 1) / 2 and i < j and use_sym) continue;
             Orbital phi_i;
-            int ss = mpi::orb_bank.get_orb(i, phi_i);
+            int ss = mpi::orb_bank.get_orb(i, phi_i, 1);
             Orbital &phi_j = (*this->orbitals)[j];
             Orbital phi_jij;
             Orbital phi_iij;
@@ -304,7 +304,7 @@ Orbital ExchangePotentialD1::calcExchange(Orbital phi_p) {
 
     for (int i = 0; i < Phi.size(); i++) {
         Orbital &phi_i = Phi[i];
-        if (!mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i, phi_i);
+        if (!mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i, phi_i, 1);
         double spin_fac = getSpinFactor(phi_i, phi_p);
         if (std::abs(spin_fac) < mrcpp::MachineZero) continue;
 
@@ -352,7 +352,7 @@ void ExchangePotentialD1::calcInternal(int i) {
     Orbital &phi_i = (*this->orbitals)[i];
 
     if (mpi::my_orb(phi_i)) {
-        double prec = std::min(getScaledPrecision(i, i), 1.0e-1);
+        double prec = this->apply_prec;;
         mrcpp::PoissonOperator &P = *this->poisson;
 
         // compute phi_ii = phi_i^dag * phi_i
@@ -407,7 +407,7 @@ void ExchangePotentialD1::calcInternal(int i, int j) {
     if (std::abs(spinFactor) < thrs) { return; }
 
     // set correctly scaled precision for components ij and ji
-    double prec = std::min(getScaledPrecision(i, j), getScaledPrecision(j, i));
+    double prec = this->apply_prec;
     if (prec > 1.0e00) return;     // orbital does not contribute within the threshold
     prec = std::min(prec, 1.0e-1); // very low precision does not work properly
 

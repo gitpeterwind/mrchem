@@ -186,7 +186,7 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
         mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true, true);
     }
     if (phi_i.hasImag() and phi_j.hasImag()) { // multiply by +1.0 for complex conjugate and i*i
-        mrcpp::multiply(precf, phi_ij_tmp.real(), 1.0, phi_i.real(), phi_j.real(), -1, true, true);
+        mrcpp::multiply(precf, phi_ij_tmp.real(), 1.0, phi_i.imag(), phi_j.imag(), -1, true, true);
         phi_ij.real().add(1.0, phi_ij_tmp.real());
     }
     if (phi_i.hasReal() and phi_j.hasImag()) { // multiply by -1.0 for complex conjugate of j
@@ -211,11 +211,11 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
     }
 
     std::vector<mrcpp::FunctionTree<3> *> phi_opt_vec; // used to steer precision of Poisson application
-    phi_opt_vec.push_back(&phi_k.real());
-    if (phi_k.hasImag()) { phi_opt_vec.push_back(&phi_k.imag()); }
+    if (phi_k.hasReal()) phi_opt_vec.push_back(&phi_k.real());
+    if (phi_k.hasImag()) phi_opt_vec.push_back(&phi_k.imag());
     if (phi_out_jij != nullptr) {
-        phi_opt_vec.push_back(&phi_j.real());
-        if (phi_j.hasImag()) { phi_opt_vec.push_back(&phi_j.imag()); }
+        if (phi_j.hasReal()) phi_opt_vec.push_back(&phi_j.real());
+        if (phi_j.hasImag()) phi_opt_vec.push_back(&phi_j.imag());
     }
 
     // compute V_ij = P[phi_ij]
@@ -339,17 +339,6 @@ int ExchangePotential::testPreComputed(Orbital phi_p) const {
         }
     }
     return out;
-}
-
-/** @brief scale the relative precision based on norm
- *
- * The internal norms are saved between SCF iterations so that they can
- * be used to estimate the size of the different contributions to the total
- * exchange. The relative precision of the Poisson terms is scaled to give a
- * consistent _absolute_ pecision in the final output.
- */
-double ExchangePotential::getScaledPrecision(int i, int j) const {
-    return this->apply_prec;
 }
 
 } // namespace mrchem
