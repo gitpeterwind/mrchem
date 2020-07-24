@@ -352,7 +352,7 @@ void ExchangePotentialD1::calcInternal(int i) {
     Orbital &phi_i = (*this->orbitals)[i];
 
     if (mpi::my_orb(phi_i)) {
-        double prec = this->apply_prec;;
+        double prec = this->apply_prec;
         mrcpp::PoissonOperator &P = *this->poisson;
 
         // compute phi_ii = phi_i^dag * phi_i

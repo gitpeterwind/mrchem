@@ -141,10 +141,7 @@ void mpi::initialize() {
 
 void mpi::finalize() {
 #ifdef HAVE_MPI
-    if (mpi::bank_size > 0 and mpi::grand_master()){
-        println(1, " max data in bank "<<mpi::orb_bank.get_maxtotalsize()<<" MB ");
-        mpi::orb_bank.close();
-    }
+    if (mpi::bank_size > 0 and mpi::grand_master()) mpi::orb_bank.close();
     MPI_Finalize();
 #endif
 }
@@ -421,7 +418,7 @@ void Bank::open() {
             MPI_Send(&message, 1, MPI_INTEGER, status.MPI_SOURCE, 77, mpi::comm_bank);
         }
         if (message == GETMAXTOTDATA) {
-            int maxsize_int = maxsize/1024; // convert into MB
+            int maxsize_int = maxsize / 1024; // convert into MB
             MPI_Send(&maxsize_int, 1, MPI_INTEGER, status.MPI_SOURCE, 1171, mpi::comm_bank);
        }
         if (message == GET_ORBITAL or message == GET_ORBITAL_AND_WAIT or message == GET_ORBITAL_AND_DELETE or
@@ -488,9 +485,7 @@ void Bank::open() {
             } else {
                 ix = deposits.size(); // NB: ix is now index of last element + 1
                 deposits.resize(ix + 1);
-                if (message == SAVE_ORBITAL or message == SAVE_FUNCTION) {
-                    deposits[ix].orb = new Orbital(0);
-                }
+                if (message == SAVE_ORBITAL or message == SAVE_FUNCTION) deposits[ix].orb = new Orbital(0);
                 if (message == SAVE_DATA) {
                     deposits[ix].data = new double[datasize];
                     deposits[ix].hasdata = true;
@@ -518,7 +513,7 @@ void Bank::open() {
                          deposits[ix].id,
                          mpi::comm_bank,
                          &status);
-                this->currentsize += datasize/128; // converted into kB
+                this->currentsize += datasize / 128; // converted into kB
                 this->maxsize = std::max(this->currentsize, this->maxsize);
              }
             if (id2qu[deposits[ix].id] != 0) {
@@ -536,7 +531,8 @@ void Bank::open() {
                         MPI_Send(deposits[ix].data, datasize, MPI_DOUBLE, iqq, queue[iq].id, mpi::comm_bank);
                     }
                 }
-                queue[iq].clients.clear(); // cannot erase entire queue[iq], because that would require to shift all the id2qu value larger than iq
+                queue[iq].clients.clear(); // cannot erase entire queue[iq], because that would require to shift all the
+                                           // id2qu value larger than iq
                 queue[iq].id = -1;
                 id2qu.erase(deposits[ix].id);
             }
@@ -689,8 +685,6 @@ int Bank::get_maxtotalsize() {
 #endif
     return maxtot;
 }
-
-
 
 // remove all deposits
 // NB:: collective call. All clients must call this
