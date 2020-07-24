@@ -85,7 +85,7 @@ void QMFunction::free(int type) {
         if (hasImag()) delete this->func_ptr->im;
         this->func_ptr->im = nullptr;
     }
-    if(isShared() and !hasImag() and !hasReal()) this->func_ptr->shared_mem->clear();
+    if (isShared() and !hasImag() and !hasReal()) this->func_ptr->shared_mem->clear();
 }
 
 /** @brief Returns the orbital meta data

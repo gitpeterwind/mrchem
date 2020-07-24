@@ -147,7 +147,7 @@ private:
     std::map<int, int> id2qu;
     std::vector<bank::queue_struct> queue;
     long long currentsize = 0; // total deposited data size (without containers)
-    long long maxsize = 0; // max total deposited data size (without containers)
+    long long maxsize = 0;     // max total deposited data size (without containers)
 
     void clear_bank();
 };
