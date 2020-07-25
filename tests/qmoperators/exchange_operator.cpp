@@ -52,7 +52,7 @@ TEST_CASE("ExchangeOperator", "[exchange_operator]") {
 
     auto Phi_p = std::make_shared<OrbitalVector>();
     auto P_p = std::make_shared<mrcpp::PoissonOperator>(*MRA, prec);
-    ExchangeOperator V(P_p, Phi_p);
+    ExchangeOperator V(P_p, Phi_p, prec);
 
     OrbitalVector &Phi = *Phi_p;
     ns.push_back(1);

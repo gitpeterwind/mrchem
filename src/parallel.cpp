@@ -420,7 +420,7 @@ void Bank::open() {
         if (message == GETMAXTOTDATA) {
             int maxsize_int = maxsize / 1024; // convert into MB
             MPI_Send(&maxsize_int, 1, MPI_INTEGER, status.MPI_SOURCE, 1171, mpi::comm_bank);
-       }
+        }
         if (message == GET_ORBITAL or message == GET_ORBITAL_AND_WAIT or message == GET_ORBITAL_AND_DELETE or
             message == GET_FUNCTION or message == GET_DATA) {
             // withdrawal
@@ -515,7 +515,7 @@ void Bank::open() {
                          &status);
                 this->currentsize += datasize / 128; // converted into kB
                 this->maxsize = std::max(this->currentsize, this->maxsize);
-             }
+            }
             if (id2qu[deposits[ix].id] != 0) {
                 // someone is waiting for those data. Send to them
                 int iq = id2qu[deposits[ix].id];

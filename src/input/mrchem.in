@@ -398,6 +398,7 @@ def write_scf_fock(user_dict, mol_dict, wf_method, dft_funcs):
     if wf_method in ['hf', 'dft']:
         fock_dict["exchange_operator"] = {
             "screen": False,
+            "exchange_prec": user_dict["Precisions"]["exchange_prec"],
             "poisson_prec": user_dict["Precisions"]["poisson_prec"]
         }
 
@@ -699,7 +700,8 @@ def write_rsp_fock(user_dict, mol_dict, wf_method, dft_funcs):
     if wf_method in ['hf', 'dft']:
         fock_dict["exchange_operator"] = {
             "screen": False,
-            "poisson_prec": user_dict["Precisions"]["poisson_prec"],
+            "exchange_prec": user_dict["Precisions"]["exchange_prec"],
+            "poisson_prec": user_dict["Precisions"]["poisson_prec"]
         }
 
     # Exchange-Correlation

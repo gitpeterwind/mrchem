@@ -24,10 +24,11 @@ namespace mrchem {
  * @param[in] P Poisson operator (does not take ownership)
  * @param[in] Phi vector of orbitals which define the exchange operator
  */
-ExchangePotential::ExchangePotential(PoissonOperator_p P, OrbitalVector_p Phi, bool s)
+ExchangePotential::ExchangePotential(PoissonOperator_p P, OrbitalVector_p Phi, double exchange_prec)
         : orbitals(Phi)
         , poisson(P) {
     int nOrbs = this->orbitals->size();
+    this->exchange_prec=exchange_prec;
 }
 
 /** @brief Perform a unitary transformation among the precomputed exchange contributions

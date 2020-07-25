@@ -24,8 +24,8 @@ namespace mrchem {
  * @param[in] P Poisson operator (does not take ownership)
  * @param[in] Phi vector of orbitals which define the exchange operator
  */
-ExchangePotentialD1::ExchangePotentialD1(PoissonOperator_p P, OrbitalVector_p Phi, bool s)
-        : ExchangePotential(P, Phi, s) {}
+ExchangePotentialD1::ExchangePotentialD1(PoissonOperator_p P, OrbitalVector_p Phi, double prec)
+        : ExchangePotential(P, Phi, prec) {}
 
 /** @brief precomputes the exchange potential
  *
@@ -128,7 +128,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
     OrbitalVector &Phi = *this->orbitals;
     OrbitalVector &Ex = this->exchange;
 
-    double precf = prec / std::min(10.0, std::sqrt(1.0 * Phi.size())); // since we sum over orbitals
+    double precf = this->exchange_prec / std::min(10.0, std::sqrt(1.0 * Phi.size())); // since we sum over orbitals
 
     // Initialize this->exchange and compute own diagonal elements
     Timer timer;

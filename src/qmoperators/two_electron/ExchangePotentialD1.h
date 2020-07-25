@@ -23,7 +23,7 @@ namespace mrchem {
 
 class ExchangePotentialD1 final : public ExchangePotential {
 public:
-    ExchangePotentialD1(std::shared_ptr<mrcpp::PoissonOperator> P, std::shared_ptr<OrbitalVector> Phi, bool s = false);
+    ExchangePotentialD1(std::shared_ptr<mrcpp::PoissonOperator> P, std::shared_ptr<OrbitalVector> Phi, double prec);
     ~ExchangePotentialD1() override = default;
 
     friend class ExchangeOperator;
