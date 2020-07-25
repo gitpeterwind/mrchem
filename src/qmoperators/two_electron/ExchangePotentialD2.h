@@ -30,7 +30,7 @@ public:
                         std::shared_ptr<OrbitalVector> Phi,
                         std::shared_ptr<OrbitalVector> X,
                         std::shared_ptr<OrbitalVector> Y,
-                        bool s = false);
+                        double prec);
     ~ExchangePotentialD2() override = default;
 
     friend class ExchangeOperator;

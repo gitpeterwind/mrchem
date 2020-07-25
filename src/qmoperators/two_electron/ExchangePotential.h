@@ -23,7 +23,7 @@ namespace mrchem {
 
 class ExchangePotential : public QMOperator {
 public:
-    ExchangePotential(std::shared_ptr<mrcpp::PoissonOperator> P, std::shared_ptr<OrbitalVector> Phi, bool s = false);
+    ExchangePotential(std::shared_ptr<mrcpp::PoissonOperator> P, std::shared_ptr<OrbitalVector> Phi, double exchange_prec);
     ~ExchangePotential() override = default;
 
     void calc_i_Int_jk_P(double prec,
@@ -43,6 +43,8 @@ protected:
 
     auto &getPoisson() { return this->poisson; }
     double getSpinFactor(Orbital phi_i, Orbital phi_j) const;
+
+    double exchange_prec;
 
     void rotate(const ComplexMatrix &U);
     void setup(double prec) override;

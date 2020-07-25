@@ -28,8 +28,8 @@ ExchangePotentialD2::ExchangePotentialD2(PoissonOperator_p P,
                                          OrbitalVector_p Phi,
                                          OrbitalVector_p X,
                                          OrbitalVector_p Y,
-                                         bool s)
-        : ExchangePotential(P, Phi, s)
+                                         double prec)
+        : ExchangePotential(P, Phi, prec)
         , orbitals_x(X)
         , orbitals_y(Y) {
     if (X == Y) useOnlyX = true;

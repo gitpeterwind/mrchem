@@ -944,14 +944,14 @@ void driver::build_fock_operator(const json &json_fock, Molecule &mol, FockOpera
     /////////////////   Exchange Operator   ///////////////////
     ///////////////////////////////////////////////////////////
     if (json_fock.contains("exchange_operator") and exx > mrcpp::MachineZero) {
+        auto exchange_prec = json_fock["exchange_operator"]["exchange_prec"];
         auto poisson_prec = json_fock["exchange_operator"]["poisson_prec"];
-        auto screen_prec = json_fock["exchange_operator"]["screen"];
         auto P_p = std::make_shared<PoissonOperator>(*MRA, poisson_prec);
         if (order == 0) {
-            auto K_p = std::make_shared<ExchangeOperator>(P_p, Phi_p, screen_prec);
+            auto K_p = std::make_shared<ExchangeOperator>(P_p, Phi_p, exchange_prec);
             F.getExchangeOperator() = K_p;
         } else {
-            auto K_p = std::make_shared<ExchangeOperator>(P_p, Phi_p, X_p, Y_p, screen_prec);
+            auto K_p = std::make_shared<ExchangeOperator>(P_p, Phi_p, X_p, Y_p, exchange_prec);
             F.getExchangeOperator() = K_p;
         }
     }
