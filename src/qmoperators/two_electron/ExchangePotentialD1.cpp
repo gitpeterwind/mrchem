@@ -52,14 +52,16 @@ void ExchangePotentialD1::setupInternal(double prec) {
     for (int i = 0; i < Phi.size(); i++) {
         Orbital &phi_i = (*this->orbitals)[i];
         Orbital phi_iii = phi_i.paramCopy();
-        if (mpi::my_orb(phi_i)) { calc_i_Int_jk_P(prec, phi_i, phi_i, phi_i, phi_iii); }
+        double precf = this->exchange_prec / std::min(10.0, std::sqrt(1.0 * Phi.size())); // since we sum over orbitals
+        if (mpi::my_orb(phi_i)) { calc_i_Int_jk_P(precf, phi_i, phi_i, phi_i, phi_iii); }
         this->exchange.push_back(phi_iii);
     }
 
     // Off-diagonal
     OrbitalIterator iter(Phi, true); // symmetric iterator
     Orbital ex_rcv;
-    while (iter.next(1)) { // one orbital at the time
+    double precf = this->exchange_prec / std::min(10.0, std::sqrt(1.0 * Phi.size())); // since we sum over orbitals
+    while (iter.next(1)) {                                                            // one orbital at a time
         if (iter.get_size() > 0) {
             Orbital &phi_i = iter.orbital(0);
             int idx = iter.idx(0); // index of orbital phi_i
@@ -70,7 +72,7 @@ void ExchangePotentialD1::setupInternal(double prec) {
                     Orbital phi_jij;
                     Orbital phi_iij;
                     // compute phi_iij and phi_jij in one operation
-                    calc_i_Int_jk_P(prec, phi_i, phi_j, phi_i, phi_iij, &phi_jij);
+                    calc_i_Int_jk_P(precf, phi_i, phi_j, phi_i, phi_iij, &phi_jij);
                     double i_fac = getSpinFactor(phi_i, phi_j);
                     double j_fac = getSpinFactor(phi_j, phi_i);
                     Ex[j].add(j_fac, phi_iij);
