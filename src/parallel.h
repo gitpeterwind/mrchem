@@ -136,6 +136,8 @@ public:
     void put_readytask(int id, int i);
     void del_readytask(int id, int i);
     std::vector<int> get_readytasks(int i);
+    int get_orb_n(int id, Orbital &orb);
+    int put_orb_n(int id, Orbital &orb, int n);
 
 private:
     int const CLOSE_BANK = 1;
@@ -159,6 +161,8 @@ private:
     int const SAVE_ORBITALVEC = 19;
     int const GET_ORBITALVEC = 20;
     int const GET_ORBITALVEC_AND_WAIT = 21;
+    int const GET_ORB_N = 22;
+    int const PUT_ORB_N = 23;
     std::map<int, int> id2ix;
     std::vector<bank::deposit> deposits;
     std::map<int, int> id2qu;

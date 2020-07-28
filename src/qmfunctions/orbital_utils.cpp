@@ -225,9 +225,9 @@ OrbitalVector orbital::add(ComplexDouble a, OrbitalVector &Phi_a, ComplexDouble 
  */
 OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double prec) {
 
-    if(mpi::bank_size > 0 and Phi.size() >= sqrt(8*mpi::orb_size)) {
+    /*    if(mpi::bank_size > 0 and Phi.size() >= sqrt(8*mpi::orb_size)) {
         return orbital::rotate_bank(Phi, U, prec);
-    }
+        }*/
 
     // Get all out orbitals belonging to this MPI
     auto inter_prec = (mpi::numerically_exact) ? -1.0 : prec;
@@ -268,6 +268,88 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
  * MPI: Rank distribution of output vector is the same as input vector
  *
  */
+/*
+OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, double prec) {
+
+  mpi::barrier(mpi::comm_orb); // for testing
+  int block_size = 16;
+  Timer t_tot,t_bankr,t_bankw,t_add;
+    t_bankw.stop();
+    t_bankr.stop();
+    t_add.stop();
+    int N = Phi.size();
+    auto priv_prec = (mpi::numerically_exact) ? -1.0 : prec;
+    auto out = orbital::param_copy(Phi);
+
+    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb); // needed!
+
+    t_bankw.resume();
+    // save all orbitals in bank
+    for (int i = 0; i < N; i++) {
+        if (not mpi::my_orb(Phi[i])) continue;
+        mpi::orb_bank.put_orb(i, Phi[i]);
+    }
+    t_bankw.stop();
+
+    int done=0;
+    int iorb=0;
+    int shift=mpi::orb_rank; // in order to ditribute among all banks
+    while(true) {
+        QMFunctionVector ifunc_vec;
+        ComplexVector coef_vec(block_size+1);
+        t_bankr.resume();
+        std::vector<int> i_index;
+        while(iorb < N) {
+            //fetch a block
+            Orbital phi_i;
+            int iorbital_index = (iorb + shift)%N;
+            i_index.push_back(iorbital_index);
+            mpi::orb_bank.get_orb(iorbital_index, phi_i, 1);
+            ifunc_vec.push_back(phi_i);
+            iorb++;
+            if(ifunc_vec.size()>=block_size)break;
+        }
+        t_bankr.stop();
+        for (int jorb = 0; jorb < N; jorb++) {
+            if (not mpi::my_orb(Phi[jorb])) continue;
+            for (int i = 0; i < ifunc_vec.size() ; i++) {
+                coef_vec(i) = U(i_index[i], jorb);
+            }
+            auto tmp_j = out[jorb].paramCopy();
+            t_add.resume();
+            qmfunction::linear_combination(tmp_j, coef_vec, ifunc_vec, priv_prec);
+            out[jorb].add(1.0, tmp_j); // In place addition
+            out[jorb].crop(priv_prec);
+            t_add.stop();
+            if(mpi::orb_rank==0)std::cout<<jorb<<" Time total " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bankr " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bankw " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" block size "<<block_size<<std::endl;
+        }
+        if(iorb>=N)break;
+    }
+    if(mpi::orb_rank==0)std::cout<<" Time total " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bankr " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bankw " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" block size "<<block_size<<std::endl;
+
+    mpi::barrier(mpi::comm_orb);
+    if(mpi::orb_rank==0)std::cout<<" Time total all " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<std::endl;
+
+    if (mpi::numerically_exact) {
+        for (auto &phi : out) {
+            if (mpi::my_orb(phi)) phi.crop(prec);
+        }
+    }
+    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
+
+    return out;
+}
+*/
+
+/** @brief Orbital transformation out_j = sum_i inp_i*U_ij
+ *
+ * NOTE: OrbitalVector is considered a ROW vector, so rotation
+ *       means matrix multiplication from the right
+ *
+ * MPI: Rank distribution of output vector is the same as input vector
+ *
+ */
+
 OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, double prec) {
 
   mpi::barrier(mpi::comm_orb); // for testing
@@ -337,12 +419,15 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
         t_last.start();
         QMFunctionVector ifunc_vec;
 	t_bankr.resume();
+        int nodesize=0;
         for (int i = 0; i < itasks[it].size(); i++) {
             int iorb = itasks[it][i];
             Orbital phi_i;
             mpi::orb_bank.get_orb(iorb, phi_i, 1);
             ifunc_vec.push_back(phi_i);
+            nodesize+=phi_i.getSizeNodes(NUMBER::Total);
         }
+        if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" fetched total " <<nodesize/1024  <<" MB for "<<itasks[it].size()<<" nodes "<<std::endl;
 	t_bankr.stop();
         for (int j = 0; j < jtasks[it].size(); j++) {
             ComplexVector coef_vec(itasks[it].size()+10*block_size);
@@ -458,17 +543,6 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
     }
     mpi::barrier(mpi::comm_orb);
     if(mpi::orb_rank==0)std::cout<<" Time total all " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<std::endl;
-    /*
-    // fetch final result
-    for (int i = 0; i < N; i++) {
-        if (not mpi::my_orb(Phi[i])) continue;
-        std::vector<int> jvec = mpi::orb_bank.get_readytasks(i);
-	if ( jvec.size() != 1)  MSG_ABORT(mpi::orb_rank<<" rotate_bank: did not find only my orbital "<<i<<" size "<<jvec.size());
-	Orbital phi_i;
-	int ok = mpi::orb_bank.get_orb_del(jvec[0], out[i]);
-	if (ok == 0)  MSG_ABORT("rotate_bank: did not find my orbital");
-	}*/
-
 
     if (mpi::numerically_exact) {
         for (auto &phi : out) {
