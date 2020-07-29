@@ -135,7 +135,7 @@ void mpi::initialize() {
     //if bank_size is large enough, we reserve one as "task manager"
     mpi::orb_bank_size = mpi::bank_size;
     mpi::task_bank=-1;
-    if(mpi::bank_size > 20){
+    if(mpi::bank_size > 1){
       mpi::orb_bank_size = mpi::bank_size-1;
       mpi::task_bank=mpi::bankmaster[mpi::bank_size-1];
     }
@@ -148,6 +148,7 @@ void mpi::initialize() {
         // bank is open until end of program
         mpi::orb_bank.open();
         mpi::finalize();
+        exit(EXIT_SUCCESS);
     }
 #else
     mpi::bank_size = 0;
@@ -161,9 +162,8 @@ void mpi::finalize() {
         if (plevel > 1) std::cout<<" max data in bank "<<mpi::orb_bank.get_maxtotalsize()<<" MB "<<std::endl;
         mpi::orb_bank.close();
     }
+    MPI_Barrier(MPI_COMM_WORLD); // to ensure everybody got here
     MPI_Finalize();
-    std::cout<<mpi::world_rank<<" finished "<<std::endl;
-    MPI_Barrier(MPI_COMM_WORLD);
 #endif
 }
 
@@ -178,7 +178,7 @@ void mpi::barrier(MPI_Comm comm) {
  *********************************/
 
 bool mpi::grand_master() {
-    return (mpi::orb_rank == 0) ? true : false;
+    return (mpi::world_rank == 0 and is_bankclient) ? true : false;
 }
 
 bool mpi::share_master() {
@@ -614,6 +614,7 @@ void Bank::open() {
 	    int iready;
             MPI_Recv(&iready, 1, MPI_INTEGER, status.MPI_SOURCE, status.MPI_TAG, mpi::comm_bank, &status);
 	    readytasks[iready].push_back(status.MPI_TAG); // status.MPI_TAG gives the id
+            std::cout<<mpi::world_rank<<" push id "<<status.MPI_TAG<<" orb "<<iready<<" tot "<<readytasks[iready].size()<<std::endl;
 	}
         if (message == DEL_READYTASK) {
 	    int iready; // corresponding orbital index given by client
@@ -637,7 +638,7 @@ void Bank::open() {
             for (int i = 0; i < nbanks; i++) {
                 banks[i] = mpi::bankmaster[(id+i) % mpi::orb_bank_size];
             }
-            MPI_Send(banks.data(), 1, MPI_INTEGER, status.MPI_SOURCE, 846, mpi::comm_bank);
+            MPI_Send(banks.data(), nbanks, MPI_INTEGER, status.MPI_SOURCE, 846, mpi::comm_bank);
         }
         if (message == GET_ORB_N) {
             // find an available bank
