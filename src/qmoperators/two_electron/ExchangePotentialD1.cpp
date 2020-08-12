@@ -140,7 +140,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
         this->exchange.push_back(phi_iii);
     }
 
-    println(4, " Exchange time diagonal " << (int)((float)timer.elapsed() * 1000) << " ms ");
+    println(2, " Exchange time diagonal " << (int)((float)timer.elapsed() * 1000) << " ms ");
 
     // Save all orbitals in Bank, so that they can be accessed asynchronously
     Timer timerS;
@@ -232,9 +232,9 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
             }
         }
     }
-    println(3, " Time exchanges compute " << (int)((float)timer.elapsed() * 1000) << " ms ");
+    println(2, " Time exchanges compute " << (int)((float)timer.elapsed() * 1000) << " ms ");
     mpi::barrier(mpi::comm_orb);
-    println(3, " Time exchanges all mpi finished " << (int)((float)timer.elapsed() * 1000) << " ms ");
+    println(2, " Time exchanges all mpi finished " << (int)((float)timer.elapsed() * 1000) << " ms ");
     timerS.resume();
     for (int j = 0; j < N and use_sym; j++) {  // If symmetri is not used, there is nothing to fetch in bank
         if (not mpi::my_orb(Phi[j])) continue; // fetch only own j
@@ -252,9 +252,9 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
         Ex[j].real().crop(prec);
         ex_rcv.free(NUMBER::Total);
     }
-    println(3, " fetched in total " << foundcount << " Exchange contributions from bank ");
+    println(2, " fetched in total " << foundcount << " Exchange contributions from bank ");
     timerS.stop();
-    println(4, " Time send/rcv exchanges " << (int)((float)timerS.elapsed() * 1000) << " ms ");
+    println(2, " Time send/rcv exchanges " << (int)((float)timerS.elapsed() * 1000) << " ms ");
 
     mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
 

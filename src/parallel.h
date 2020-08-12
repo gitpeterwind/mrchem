@@ -120,9 +120,7 @@ public:
     void clear_all(int i = mpi::orb_rank, MPI_Comm comm = mpi::comm_orb);
     void clear(int ix);
     int put_orb(int id, Orbital &orb);
-    int put_orbinvec(int id, int orb_ix, Orbital &orb) ;
     int get_orb(int id, Orbital &orb, int wait = 0);
-    int get_orbfromvec(int id, int orb_ix, Orbital &orb, int wait = 0) ;
     int get_orb_del(int id, Orbital &orb);
     int put_func(int id, QMFunction &func);
     int get_func(int id, QMFunction &func);
@@ -131,12 +129,14 @@ public:
     int get_data(int id, int size, double *data);
     int get_maxtotalsize();
     std::vector<int> get_totalsize();
-    void init_tasks(int ntasks, int id = mpi::orb_rank, MPI_Comm comm=mpi::comm_orb);
+    // task manager:
+    void init_tasks(int ntasks, int rank, MPI_Comm comm);
     void get_task(int *task, int id = mpi::orb_rank);
     void put_readytask(int id, int i);
     void del_readytask(int id, int i);
-    std::vector<int> get_readytasks(int i);
-    int get_orb_n(int id, Orbital &orb);
+    std::vector<int> get_readytasks(int i, int del = 0);
+    // bank manager:
+    int get_orb_n(int id, Orbital &orb, int del = 0);
     int put_orb_n(int id, Orbital &orb, int n);
 
 private:
@@ -158,11 +158,10 @@ private:
     int const PUT_READYTASK = 16;
     int const DEL_READYTASK = 17;
     int const GET_READYTASK = 18;
-    int const SAVE_ORBITALVEC = 19;
-    int const GET_ORBITALVEC = 20;
-    int const GET_ORBITALVEC_AND_WAIT = 21;
-    int const GET_ORB_N = 22;
-    int const PUT_ORB_N = 23;
+    int const GET_READYTASK_DEL = 19;
+    int const GET_ORBITALVEC_AND_WAIT = 22;
+    int const GET_ORB_N = 23;
+    int const PUT_ORB_N = 24;
     std::map<int, int> id2ix;
     std::vector<bank::deposit> deposits;
     std::map<int, int> id2qu;

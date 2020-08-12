@@ -309,7 +309,7 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
     timermult3.stop();
     V_ij.release();
 
-    println(4,
+    println(3,
             " time " << (int)((float)timer.elapsed() * 1000) << " ms "
                      << " mult1:" << (int)((float)timermult.elapsed() * 1000) << " Pot:"
                      << (int)((float)timerV.elapsed() * 1000) << " mult2:" << (int)((float)timermult2.elapsed() * 1000)
