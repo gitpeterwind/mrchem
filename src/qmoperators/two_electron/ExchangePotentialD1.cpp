@@ -223,7 +223,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
                             if (found) Ex[jj].add(j_fac, ex_rcv);
                         }
                     }
-                    Ex[jj].real().crop(prec);
+                    Ex[jj].crop(prec);
                 }
                 ex_rcv.free(NUMBER::Total);
                 println(4,
@@ -250,7 +250,7 @@ void ExchangePotentialD1::setupInternal_bank(double prec) {
                 if (found) Ex[j].add(j_fac, ex_rcv);
             }
         }
-        Ex[j].real().crop(prec);
+        Ex[j].crop(prec);
         ex_rcv.free(NUMBER::Total);
     }
     println(3, " fetched in total " << foundcount << " Exchange contributions from bank ");
