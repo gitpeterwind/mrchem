@@ -35,6 +35,7 @@ private:
     void calcInternal(int i);
     void calcInternal(int i, int j);
     void setupInternal_bank(double prec);
+    void setupInternal_bankqueue(double prec);
 };
 
 } // namespace mrchem

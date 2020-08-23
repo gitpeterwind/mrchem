@@ -25,6 +25,7 @@
 
 #include <bits/stdc++.h>
 #include <MRCPP/Printer>
+#include <MRCPP/Timer>
 
 #include "parallel.h"
 #include "qmfunctions/ComplexFunction.h"
@@ -32,6 +33,7 @@
 #include "qmfunctions/Orbital.h"
 
 using mrcpp::Printer;
+using mrcpp::Timer;
 
 namespace mrchem {
 
@@ -493,12 +495,12 @@ void Bank::open() {
 
     bool printinfo = false;
     SimpleQueue bank_queue(mpi::orb_bank_size);
-
     // The bank never goes out of this loop until it receives a close message!
     while (true) {
+        Timer t_timer;
         MPI_Recv(&message, 1, MPI_INTEGER, MPI_ANY_SOURCE, MPI_ANY_TAG, mpi::comm_bank, &status);
-        if (printinfo)
-            std::cout << mpi::world_rank << " got message " << message <<" from " << status.MPI_SOURCE <<std::endl;
+        //        if (printinfo or (int)((float)t_timer.elapsed()* 1000)>150)
+        //  std::cout << mpi::world_rank << " got message " << message <<" from " << status.MPI_SOURCE <<" "<<(int)((float)t_timer.elapsed()* 1000)<<std::endl;
         if (message == CLOSE_BANK) {
             if (mpi::is_bankmaster and printinfo) std::cout << "Bank is closing" << std::endl;
             this->clear_bank();
@@ -574,6 +576,7 @@ void Bank::open() {
             // make a new deposit
             int exist_flag = 0;
             if (id2ix[status.MPI_TAG]) {
+                std::cout<<"WARNING: id "<<status.MPI_TAG<<" exists already"<<std::endl;
                 ix = id2ix[status.MPI_TAG]; // the deposit exist from before. Will be overwritten
                 exist_flag = 1;
                 if (message == SAVE_DATA and !deposits[ix].hasdata) {
@@ -668,6 +671,7 @@ void Bank::open() {
 	    int iready;
             MPI_Recv(&iready, 1, MPI_INTEGER, status.MPI_SOURCE, status.MPI_TAG, mpi::comm_bank, &status);
 	    readytasks[iready].push_back(status.MPI_TAG); // status.MPI_TAG gives the id
+            if(readytasks[iready][0]==0)std::cout<<"ERROR putreadytask"<<std::endl;
 	}
         if (message == DEL_READYTASK) {
 	    int iready; // corresponding orbital index given by client
@@ -682,6 +686,7 @@ void Bank::open() {
         if (message == GET_READYTASK) {
 	    int iready = status.MPI_TAG; // the value of the index is sent through the tag
 	    int nready = readytasks[iready].size();
+            if(nready>0 and readytasks[iready][0]==0)std::cout<<"ERROR getreadytask"<<std::endl;
             MPI_Send(&nready, 1, MPI_INTEGER, status.MPI_SOURCE, 844, mpi::comm_bank);
             MPI_Send(readytasks[iready].data(), nready, MPI_INTEGER, status.MPI_SOURCE, 845, mpi::comm_bank);
 	}
@@ -689,6 +694,7 @@ void Bank::open() {
 	    int iready = status.MPI_TAG; // the value of the index is sent through the tag
 	    int nready = readytasks[iready].size();
             MPI_Send(&nready, 1, MPI_INTEGER, status.MPI_SOURCE, 844, mpi::comm_bank);
+            if(nready>0 and readytasks[iready][0]==0)std::cout<<"ERROR del getreadytask"<<std::endl;
             MPI_Send(readytasks[iready].data(), nready, MPI_INTEGER, status.MPI_SOURCE, 845, mpi::comm_bank);
             readytasks[iready].clear();
 	}
@@ -698,6 +704,9 @@ void Bank::open() {
             MPI_Recv(&nbanks, 1, MPI_INTEGER, status.MPI_SOURCE, id, mpi::comm_bank, &status);
             // make a list of n banks that will store the orbital id.
             std::vector<int> banks(nbanks); // the ranks of the banks to whom to send the orbital
+            if(banks_fromid[id].size()>0){
+                std::cout<<mpi::orb_rank<<"WARNING: bank id "<<id<<" is already defined "<<banks_fromid[id].size()<<std::endl;
+            }
             banks_fromid[id].clear();
             for (int i = 0; i < nbanks; i++) {
                 //                banks[i] = (id+i) % mpi::orb_bank_size;
@@ -713,11 +722,15 @@ void Bank::open() {
             int b_rank = (id) % mpi::orb_bank_size;
             long long mn=1e18;
             for (int rank : banks_fromid[id]) {
-                if(queue_n[rank]<mn) {
-                    mn = queue_n[rank];
+                if(bank_queue.getTimestamp(rank)<mn) {
+                    //                if(queue_n[rank]<mn) {
+                    //                    mn = queue_n[rank];
+                    mn = bank_queue.getTimestamp(rank);
                     b_rank = rank;
                 }
             }
+
+            //            std::cout<<" giving bank "<<b_rank<<" score "<<queue_n[b_rank]<<" Timestamp "<<bank_queue.getTimestamp(b_rank) <<" "<<queue_n[b_rank]<<std::endl;
             queue_n[b_rank] = request_counter++;
             bank_queue.moveToBack(b_rank); // mark as busy
             MPI_Send(&b_rank, 1, MPI_INTEGER, status.MPI_SOURCE, 847, mpi::comm_bank);
@@ -970,6 +983,7 @@ std::vector<int> Bank::get_readytasks(int i, int del) {
     MPI_Recv(&nready, 1, MPI_INTEGER, mpi::task_bank, 844, mpi::comm_bank, &status);
     readytasks.resize(nready);
     MPI_Recv(readytasks.data(), nready, MPI_INTEGER, mpi::task_bank, 845, mpi::comm_bank, &status);
+    if(nready>0 and readytasks[0]==0)std::cout<<"ERROR get_readytask "<<nready<<std::endl;
 
 #endif
     return readytasks;
@@ -1015,8 +1029,10 @@ int Bank::get_orb_n(int id, Orbital &orb, int del) {
             return 0;
         }
      } else {
-        MPI_Send(&GET_ORBITAL_AND_WAIT, 1, MPI_INTEGER, mpi::bankmaster[b_rank], id, mpi::comm_bank);
-        mpi::recv_orbital(orb, mpi::bankmaster[b_rank], id, mpi::comm_bank);
+         Timer tt;
+         MPI_Send(&GET_ORBITAL_AND_WAIT, 1, MPI_INTEGER, mpi::bankmaster[b_rank], id, mpi::comm_bank);
+         mpi::recv_orbital(orb, mpi::bankmaster[b_rank], id, mpi::comm_bank);
+         //         if(mpi::world_rank==0)std::cout << mpi::world_rank << "waited " << (int)((float)tt.elapsed()* 1000)<<" for "<<orb.getSizeNodes(NUMBER::Total)/1000<<" MB from bank:"<<b_rank<<std::endl;
     }
 #endif
     return 1;

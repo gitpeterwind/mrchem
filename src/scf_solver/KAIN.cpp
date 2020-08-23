@@ -175,7 +175,7 @@ void KAIN::expandSolution(double prec, OrbitalVector &Phi, OrbitalVector &dPhi, 
 
                 auto partStep = phi_m.paramCopy();
                 qmfunction::linear_combination(partStep, partCoefs, partOrbs, prec);
-
+                partStep.crop(prec*partStep.norm());
                 auto c_j = this->c[m](j);
                 totCoefs.push_back(c_j);
                 totOrbs.push_back(partStep);
@@ -187,6 +187,7 @@ void KAIN::expandSolution(double prec, OrbitalVector &Phi, OrbitalVector &dPhi, 
 
             dPhi[n] = Phi[n].paramCopy();
             qmfunction::linear_combination(dPhi[n], coefsVec, totOrbs, prec);
+            dPhi[n].crop(prec*dPhi[n].norm());
         }
     }
 

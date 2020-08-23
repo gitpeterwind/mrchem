@@ -63,6 +63,8 @@ void orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi);
 ComplexMatrix calc_lowdin_matrix(OrbitalVector &Phi);
 ComplexMatrix calc_overlap_matrix(OrbitalVector &BraKet);
 ComplexMatrix calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ket);
+ComplexMatrix calc_overlap_matrix_task(OrbitalVector &BraKet);
+ComplexMatrix calc_overlap_matrix_task(OrbitalVector &Bra, OrbitalVector &Ket, bool sym = false);
 ComplexMatrix calc_norm_overlap_matrix(OrbitalVector &BraKet, bool exact = false);
 
 ComplexMatrix localize(double prec, OrbitalVector &Phi, ComplexMatrix &F);

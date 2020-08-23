@@ -352,11 +352,12 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
 
 OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, double prec) {
 
-  mpi::barrier(mpi::comm_orb); // for testing
+    mpi::barrier(mpi::comm_orb); // for testing
 
-  Timer t_tot,t_bankr,t_bankw,t_add,t_task,t_last;
+    Timer t_tot,t_bankr,t_bankrx,t_bankw,t_add,t_task,t_last;
     t_bankw.stop();
     t_bankr.stop();
+    t_bankrx.stop();
     t_add.stop();
     t_task.stop();
     int N = Phi.size();
@@ -365,20 +366,27 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
 
     mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb); // needed!
     mpi::barrier(mpi::comm_orb); // for testing
+    IntVector orb_sizes(N); // store the size of the orbitals, for future fine tuning
+    for(int i = 0 ; i < N; i++) orb_sizes[i] = 0;
     t_bankw.resume();
     // save all orbitals in bank
     for (int i = 0; i < N; i++) {
         if (not mpi::my_orb(Phi[i])) continue;
-        //mpi::orb_bank.put_orb_n(i, Phi[i], 3);
-        //std::cout<<mpi::orb_rank<<" put orb n "<<i<<std::endl;
-        mpi::orb_bank.put_orb_n(i, Phi[i],3);
+        mpi::orb_bank.put_orb_n(i, Phi[i], 3);
+        orb_sizes[i] = Phi[i].getSizeNodes(NUMBER::Total);
     }
     t_bankw.stop();
-    mpi::barrier(mpi::comm_orb); // for testing
+    mpi::allreduce_vector(orb_sizes, mpi::comm_orb);
+    int maxorbsize = 0;
+    for(int i = 0 ; i < N; i++) maxorbsize = std::max(maxorbsize, orb_sizes[i]);
+    // we do not want to store temporarily more than 1/4 of the total memory for orbitals. (Note this is in an unlikely scenario where all orbitals on one node have maxsize)
+    int maxBlockSize = omp::n_threads * 2000000 / 3 / maxorbsize; //assumes 2GB available per thread
+    if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" Time bank write all orb " << (int)((float)t_bankw.elapsed() * 1000) <<" largest:"<<maxorbsize/1024<<"MB. Maxblocksize:"<<maxBlockSize<<std::endl;
+
 
     // first divide into a fixed number of tasks
     int block_size; // U is partitioned in blocks with size block_size x block_size
-    block_size = std::min(12, static_cast<int>(N/sqrt(4*mpi::orb_size) + 0.5)); // each MPI process will have about 4 tasks, but blocks will not be larger than 12
+    block_size = std::min(maxBlockSize, static_cast<int>(N/sqrt(2*mpi::orb_size) + 0.5)); // each MPI process will have about 2 tasks
     int task = 0; // task rank
     int iblocks =  (N + block_size -1)/block_size;
     int ntasks = iblocks * iblocks;
@@ -391,19 +399,22 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
     // all would be written out as partial results, meaning too partial results saved in bank.
     //
     // Results from previous blocks omn the same row are ready they are also summed into current block
-    // This is because we do not want to store too many block results at a time (~0(N^2))
+    // This is because we do not want to store in bank too many block results at a time (~0(N^2))
     for (int i = 0; i < N; i+=block_size) {
         for (int j = 0; j < N; j+=block_size) {
 	    // save all i,j related to one block
-            for (int jj = j; jj < j+block_size and jj < out.size(); jj++) {
-                jtasks[task].push_back(jj);
+            for (int jj = 0; jj < block_size and j+jj < N; jj++) {
+                int jjj = j + jj;
+                if(j+block_size < N) jjj = j + (jj + mpi::orb_rank)%block_size;
+                jtasks[task].push_back(jjj);
             }
-	    int ishift = i+j; // we want the tasks to be distributed among all i, so that we do not fetch the same orbitals
-	    ishift = (ishift/block_size)%iblocks*block_size;
-            for (int ii = ishift; ii < ishift+block_size and ii < out.size(); ii++) {
-	      int iii=ii;
-	      if (ishift+block_size<=out.size()) iii = ishift + (ii+mpi::orb_rank)%block_size;
-	      itasks[task].push_back(iii);
+            int ishift = i+j; // we want the tasks to be distributed among all i, so that we do not fetch the same orbitals
+            ishift = (ishift/block_size)%iblocks*block_size;
+            ishift = i;
+            for (int ii = ishift; ii < ishift+block_size and ii < N; ii++) {
+                int iii=ii;
+                if (ishift+block_size<N) iii = ishift + (ii+mpi::orb_rank)%block_size;
+                itasks[task].push_back(iii);
             }
             task++;
         }
@@ -415,6 +426,8 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
     mpi::orb_bank.init_tasks(ntasks, mpi::orb_rank, mpi::comm_orb);
     t_task.stop();
     int count = 0;
+    int countx = 0;
+    int countxok = 0;
     while(true) { // fetch new tasks until all are completed
         int it;
 	t_task.resume();
@@ -433,49 +446,62 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
             ifunc_vec.push_back(phi_i);
             nodesize+=phi_i.getSizeNodes(NUMBER::Total);
         }
-        if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" fetched total " <<nodesize/1024  <<" MB for "<<itasks[it].size()<<" nodes "<<std::endl;
+        if(mpi::orb_rank==0)std::cout<<it<<" fetched total " <<nodesize/1024  <<" MB for "<<itasks[it].size()<<" orbitals "<<" time read "<<(int)((float)t_bankr.elapsed() * 1000) <<std::endl;
 	t_bankr.stop();
         for (int j = 0; j < jtasks[it].size(); j++) {
-            ComplexVector coef_vec(itasks[it].size()+10*block_size);
+            ComplexVector coef_vec(itasks[it].size()+block_size);
             int jorb = jtasks[it][j];
             for (int i = 0; i < itasks[it].size(); i++) {
                 int iorb = itasks[it][i];
                 coef_vec(i) = U(iorb, jorb);
             }
-            if((it/iblocks) % 4 == 3) { // every x column only
-                // include also block results which may be ready
-                t_task.resume();
-                std::vector<int> jvec = mpi::orb_bank.get_readytasks(jorb, 0);
-                t_task.stop();
-                if(jvec.size() > 3) {
-                    int i = itasks[it].size();
-                    for (int id : jvec) {
-                        Orbital phi_i;
-                        t_bankr.resume();
-                        //                        int ok = mpi::orb_bank.get_orb_del(id, phi_i);
-                        int ok = mpi::orb_bank.get_orb_n(id, phi_i, 1);
-                        t_bankr.stop();
-                        if (ok) {
-                            t_task.resume();
-                            mpi::orb_bank.del_readytask(id, jorb); // tell the task manager that this task should not be used anymore
-                            t_task.stop();
-                            ifunc_vec.push_back(phi_i);
-                            coef_vec(i++) = 1.0;
-                        }
-                        if(ifunc_vec.size() > 1.5 * block_size ) break; // we do not want too long vectors
-                    }
+            // include also block results which may be ready
+            t_task.resume();
+            std::vector<int> jvec = mpi::orb_bank.get_readytasks(jorb, 1);
+            if(block_size + jvec.size() >  2*maxBlockSize ){
+                // Security mechanism to avoid the possibility of ifunc_vec getting too large
+                for (int ix = 2*maxBlockSize-block_size; ix < jvec.size(); ix++ ) {
+                    //define as ready again (i.e. "undelete")
+                    std::cout<<jvec[ix]<<" undelete "<<jvec.size()<<" "<<ix<<jorb<<std::endl;
+                    mpi::orb_bank.put_readytask(jvec[ix], jorb);
+                    countxok++;
                 }
+                jvec.resize(2*maxBlockSize-block_size);
+            }
+            t_task.stop();
+            if(jvec.size() > 0) {
+                int i = itasks[it].size();
+                for (int id : jvec) {
+                    Orbital phi_i;
+                    t_bankrx.resume();
+                    if(id==0){
+                        std::cout<<mpi::orb_rank<<" got id=0 for"<<jorb<<std::endl;
+                        for (int ix = 0; ix < jvec.size(); ix++ ) std::cout<<ix<<" id= "<<id<<std::endl;
+                   }
+                    //                        int ok = mpi::orb_bank.get_orb_del(id, phi_i);
+                    int ok = mpi::orb_bank.get_orb_n(id, phi_i, 1);
+                    countx++;
+                    t_bankrx.stop();
+                    if (ok) {
+                        ifunc_vec.push_back(phi_i);
+                        coef_vec(i++) = 1.0;
+                    } else {
+                        std::cout<<mpi::orb_rank<<"did not find contribution for  " << jorb<<" expected "<<jvec.size()<<" id "<<id<<std::endl;
+                        MSG_ABORT("did not find contribution for my orbitals");
+                    }
+               }
             }
             auto tmp_j = out[jorb].paramCopy();
             t_add.resume();
             qmfunction::linear_combination(tmp_j, coef_vec, ifunc_vec, priv_prec);
-            tmp_j.crop(priv_prec);
             t_add.stop();
             ifunc_vec.resize(itasks[it].size());
             // save block result in bank
             int id = N+it*N+jorb; // N first indices are reserved for original orbitals
+            id = N+itasks[it][0]/block_size*N+jorb;
             t_bankw.resume();
-            mpi::orb_bank.put_orb_n(id, tmp_j, 1);
+            //            mpi::orb_bank.put_orb_n(id, tmp_j, 1);
+            mpi::orb_bank.put_orb(id, tmp_j);
             t_bankw.stop();
             t_task.resume();
             mpi::orb_bank.put_readytask(id, jorb);
@@ -484,7 +510,7 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
         t_last.stop();
     }
 
-    if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" Time rotate1 " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bank read " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bank write " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" Time task manager " << (int)((float)t_task.elapsed() * 1000) <<" Time last task " << (int)((float)t_last.elapsed() * 1000) <<" block size "<<block_size<<" ntasks executed: "<<count<<std::endl;
+    if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" Time rotate1 " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bank read " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bank read xtra " << (int)((float)t_bankrx.elapsed() * 1000) <<" xorb="<<countx<<" xundeleted="<<countxok<<" Time bank write " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" Time task manager " << (int)((float)t_task.elapsed() * 1000) <<" Time last task " << (int)((float)t_last.elapsed() * 1000) <<" block size "<<block_size<<" ntasks executed: "<<count<<std::endl;
     mpi::barrier(mpi::comm_orb);
     if(mpi::orb_rank==0)std::cout<<" Time rotate1 all " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<std::endl;
 
@@ -503,7 +529,8 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
         for (int id : jvec) {
             Orbital phi_i;
             t_bankr.resume();
-            int ok = mpi::orb_bank.get_orb_n(id, phi_i, 1);
+            //            int ok = mpi::orb_bank.get_orb_n(id, phi_i, 1);
+            int ok = mpi::orb_bank.get_orb_del(id, phi_i);
             t_bankr.stop();
 
             if (ok) {
@@ -521,7 +548,6 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
         // write result in out
         t_add.resume();
         qmfunction::linear_combination(out[jorb], coef_vec, ifunc_vec, priv_prec);
-        out[jorb].crop(priv_prec);
         t_add.stop();
     }
     if(mpi::orb_rank==0)std::cout<<" Time total " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bankr2 " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bankw2 " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" Time task manager " << (int)((float)t_task.elapsed() * 1000) <<" added "<<count<<" block size "<<block_size<<std::endl;
@@ -536,7 +562,6 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
     }
     mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
     mpi::barrier(mpi::comm_orb);
-    if(mpi::orb_rank==0)std::cout<<" Time after bank clear " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<std::endl;
 
     return out;
 }
@@ -744,6 +769,9 @@ void orbital::orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi)
 /** @brief Compute the overlap matrix S_ij = <bra_i|ket_j>
  */
 ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
+
+    return calc_overlap_matrix_task(BraKet);
+
     ComplexMatrix S = ComplexMatrix::Zero(BraKet.size(), BraKet.size());
 
     // Get all ket orbitals belonging to this MPI
@@ -787,6 +815,9 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
  *
  */
 ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ket) {
+
+    return calc_overlap_matrix_task(Bra, Ket);
+
     ComplexMatrix S = ComplexMatrix::Zero(Bra.size(), Ket.size());
 
     // Get all ket orbitals belonging to this MPI
@@ -808,6 +839,286 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
     }
     // Assumes all MPIs have (only) computed their own columns of the matrix
     mpi::allreduce_matrix(S, mpi::comm_orb);
+    return S;
+}
+
+/** @brief Compute the overlap matrix S_ij = <bra_i|ket_j>
+ *
+ * The matrix is divided into blocks and the dot products within blocks
+ * are performed by one MPI. The blocks are assigned dynamically.
+ * Since the time for fetching an orbital is larger than the time to
+ * perform the dot product, the blocks should be relatively large, even
+ * if that means the the burden is unevenly distributed.
+ *
+ *
+ */
+ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &Bra, OrbitalVector &Ket, bool sym) {
+    ComplexMatrix S = ComplexMatrix::Zero(Bra.size(), Ket.size());
+    int NB = Bra.size();
+    int NK = Ket.size();
+    int N = NB + NK;
+    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
+    Timer t_bankr,t_bankw,timer,t_dot,t_red;
+    t_bankr.stop();
+    t_dot.stop();
+    t_red.stop();
+    IntVector orb_sizes(N); // store the size of the orbitals, for future fine tuning
+    for(int i = 0 ; i < N; i++) orb_sizes[i] = 0;
+    for (int i = 0; i < NB; i++) {
+        Orbital &Phi_B = Bra[i];
+        if (not mpi::my_orb(Phi_B)) continue;
+        mpi::orb_bank.put_orb_n(i, Phi_B, 3);
+        orb_sizes[i] = Phi_B.getSizeNodes(NUMBER::Total);
+    }
+    for (int i = 0; i < NK; i++) {
+        Orbital &Phi_K = Ket[i];
+        if (not mpi::my_orb(Phi_K)) continue;
+        mpi::orb_bank.put_orb_n(i+NB, Phi_K, 3);
+        orb_sizes[i+NB] = Phi_K.getSizeNodes(NUMBER::Total);
+    }
+    t_bankw.stop();
+    mpi::allreduce_vector(orb_sizes, mpi::comm_orb);
+    int maxorbsize = 0;
+    for(int i = 0 ; i < N; i++) maxorbsize = std::max(maxorbsize, orb_sizes[i]);
+    // we do not want to store temporarily more than 1/4 of the total memory for orbitals. (Note this is in an unlikely scenario where all orbitals on one node have maxsize)
+    int maxBlockSize = omp::n_threads * 2000000 / 2 / maxorbsize; //assumes 2GB available per thread
+    if(mpi::orb_rank==0)std::cout<<" maxBlockSize "<<maxBlockSize<<std::endl;
+
+    // divide into a fixed number of tasks
+    int iblock_size, jblock_size; // U is partitioned in blocks with size iblock_size x jblock_size
+    iblock_size = std::min(24, maxBlockSize);
+    jblock_size = std::min(24, maxBlockSize);
+    int task = 0; // task rank
+    int iblocks =  (NB + iblock_size -1)/iblock_size;
+    int jblocks =  (NK + jblock_size -1)/jblock_size;
+    int ntasks = iblocks * jblocks; // NB: overwritten; will get less if sym
+    std::vector<std::vector<int>> itasks(ntasks); // the i values (orbitals) of each block
+    std::vector<std::vector<int>> jtasks(ntasks); // the j values (orbitals) of each block
+
+    if(mpi::orb_rank==0)std::cout<<ntasks<<" tasks = "<<iblocks<<" x "<<jblocks<<std::endl;
+
+    if(not sym){
+        // Task order are organised so that block along a diagonal are computed before starting next diagonal
+        // Taking blocks from same column or row would mean that the same orbitals are fetched from bank.
+        for (int i = 0; i < NB; i+=iblock_size) {
+            for (int j = 0; j < NK; j+=jblock_size) {
+                // save all i,j related to one block
+                for (int jj = 0; jj < jblock_size and j+jj < NK; jj++) {
+                    int jjj = j + jj;
+                    if (j+jblock_size < NK) jjj = j + (jj + mpi::orb_rank)%jblock_size;
+                    jtasks[task].push_back(jjj);
+                }
+                int ishift = i/iblock_size+j/jblock_size; // we want the tasks to be distributed among all i, so that we do not fetch the same orbitals
+                ishift = ishift%iblocks*iblock_size;
+                //ishift=i;
+                for (int ii = ishift; ii < ishift+iblock_size and ii < NB; ii++) {
+                    int iii=ii;
+                    if (ishift+iblock_size<NB) iii = ishift + (ii+mpi::orb_rank)%iblock_size; // mpi::orb_rank is used to mix order within blocks
+                    itasks[task].push_back(iii);
+                }
+                task++;
+            }
+        }
+    } else {
+        if (NB != NK) MSG_ERROR("Overlap: cannot use symmetry if matrix is not square");
+       // only j=<i is computed and the value copied for j>i
+        // Even if Bra != Ket, we can use that for example <i|Rj> = <j|Ri> = <i|R|j>
+        for (int i = 0; i < NB; i+=iblock_size) {
+            for (int j = 0; j < i; j+=jblock_size) {
+                // save all i,j related to one block
+                for (int jj = j; jj < j+jblock_size and jj < NK; jj++) { // jj always <NK
+                    jtasks[task].push_back((jj + mpi::orb_rank)%jblock_size);
+                }
+                for (int ii = i; ii < i+iblock_size and ii < NB; ii++) {
+                    int iii = ii;
+                    if(i+iblock_size < NB) iii=(ii + mpi::orb_rank)%iblock_size; // cannot cycle if block is small than iblock_size
+                    itasks[task].push_back(iii);
+                }
+                task++;
+            }
+        }
+        // add diagonal blocks:
+        for (int i = 0; i < NB; i+=iblock_size) {
+            // note that not we store all ii and jj in the block, but must use only half of them
+            int j = i;
+            for (int jj = j; jj < j+jblock_size and jj < NK; jj++) {
+                jtasks[task].push_back(jj);
+            }
+            for (int ii = i; ii < i+iblock_size and ii < NB; ii++) {
+                itasks[task].push_back(ii);
+            }
+            task++;
+        }
+    }
+
+    ntasks = task;
+
+    mpi::orb_bank.init_tasks(ntasks, mpi::orb_rank, mpi::comm_orb);
+
+    int count = 0;
+    while(true) { // fetch new tasks until all are completed
+        int it;
+        mpi::orb_bank.get_task(&it);
+        if(it<0)break;
+	count++;
+        OrbitalVector iorb_vec;
+	t_bankr.resume();
+        int nodesize=0;
+        for (int i = 0; i < itasks[it].size(); i++) {
+            int iorb = itasks[it][i];
+            Orbital phi_i;
+            mpi::orb_bank.get_orb_n(iorb, phi_i, 0);
+            iorb_vec.push_back(phi_i);
+            nodesize+=phi_i.getSizeNodes(NUMBER::Total);
+        }
+        if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" fetched total " <<nodesize/1024  <<" MB for "<<itasks[it].size()<<" orbitals "<<" time read "<<(int)((float)t_bankr.elapsed() * 1000)<< std::endl;
+	t_bankr.stop();
+        for (int j = 0; j < jtasks[it].size(); j++) {
+            int jorb = jtasks[it][j];
+            Orbital ket_j;
+            t_bankr.resume();
+            mpi::orb_bank.get_orb_n(jorb + NB, ket_j, 0);
+            t_bankr.stop();
+            for (int i = 0; i < itasks[it].size(); i++) {
+                int iorb = itasks[it][i];
+                if(sym and jorb > iorb) continue;
+                t_dot.resume();
+                //std::cout<<iorb<<" dot "<<jorb<<std::endl;
+                S(iorb, jorb) = orbital::dot(iorb_vec[i], ket_j);
+                if(sym) S(jorb, iorb) = std::conj(S(iorb, jorb));
+                t_dot.stop();
+            }
+        }
+    }
+
+    // Assumes each tasks has only defined its block
+    t_red.resume();
+    mpi::barrier(mpi::comm_orb); // for testing
+    int tb = (int)((float)t_red.elapsed() * 1000);
+    mpi::allreduce_matrix(S, mpi::comm_orb);
+    if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" Time overlap " << (int)((float)timer.elapsed() * 1000) << " ms "<<" Time bank read " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bank write " << (int)((float)t_bankw.elapsed() * 1000) <<" Time dot " << (int)((float)t_dot.elapsed() * 1000) <<" Time syncro " << tb <<" block size "<<iblock_size<<"x"<<jblock_size<<" ntasks executed: "<<count<<std::endl;
+    return S;
+}
+
+
+/** @brief Compute the overlap matrix S_ij = <bra_i|ket_j>
+ *
+ * The matrix is divided into blocks and the dot products within blocks
+ * are performed by one MPI. The blocks are assigned dynamically.
+ * Since the time for fetching an orbital is larger than the time to
+ * perform the dot product, the blocks should be relatively large, even
+ * if that means the the burden is unevenly distributed.
+ *
+ *
+ */
+ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &BraKet) {
+    ComplexMatrix S = ComplexMatrix::Zero(BraKet.size(), BraKet.size());
+    int N = BraKet.size();
+    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
+    Timer t_bankr,t_bankw,timer,t_dot;
+    t_bankr.stop();
+    t_dot.stop();
+     IntVector orb_sizes(N); // store the size of the orbitals, for future fine tuning
+    for(int i = 0 ; i < N; i++) orb_sizes[i] = 0;
+    for (int i = 0; i < N; i++) {
+        Orbital &Phi_i = BraKet[i];
+        if (not mpi::my_orb(Phi_i)) continue;
+        mpi::orb_bank.put_orb_n(i, Phi_i, 3);
+        orb_sizes[i] = Phi_i.getSizeNodes(NUMBER::Total);
+    }
+     t_bankw.stop();
+    mpi::allreduce_vector(orb_sizes, mpi::comm_orb);
+    int maxorbsize = 0;
+     for(int i = 0 ; i < N; i++) maxorbsize = std::max(maxorbsize, orb_sizes[i]);
+   // we do not want to store temporarily more than 1/4 of the total memory for orbitals. (Note this is in an unlikely scenario where all orbitals on one node have maxsize)
+    int maxBlockSize = omp::n_threads * 2000000 / 2 / maxorbsize; //assumes 2GB available per thread
+    if(mpi::orb_rank==0)std::cout<<" maxBlockSize "<<maxBlockSize<<std::endl;
+
+    // make a set of tasks
+    // We use symmetry: each pair (i,j) must be used once only. Only j<i
+    // Divide into square blocks, with the diagonal blocks taken at the end (because they are faster to compute)
+    int block_size = std::min(24, maxBlockSize);
+    int iblocks =  (N + block_size - 1) / block_size;
+    int ntasks = ((iblocks+1) * iblocks) / 2;
+    std::vector<std::vector<int>> itasks(ntasks); // the i values (orbitals) of each block
+    std::vector<std::vector<int>> jtasks(ntasks); // the j values (orbitals) of each block
+
+    int task = 0;
+    for (int i = 0; i < N; i+=block_size) {
+        for (int j = 0; j < i; j+=block_size) {
+	    // save all i,j related to one block
+            for (int jj = 0; jj < block_size and j+jj < N; jj++) {
+                int jjj = jj + j;
+                if (j + block_size <= N) jjj = j + (jj+mpi::orb_rank)%block_size; // only for blocks with size block_size
+                jtasks[task].push_back(jjj);
+            }
+ 	    int ishift = (i+j)/block_size; // we want the tasks to be distributed among all i, so that we do not fetch the same orbitals
+            for (int ii = 0; ii < block_size; ii++) {
+                int iii = ii + i;
+                if(iii >= N) continue;
+                if (i + block_size < N) iii = i + (ii+ishift)%block_size; // only for blocks with size block_size
+                itasks[task].push_back(iii);
+            }
+            task++;
+       }
+    }
+    // add diagonal blocks:
+    for (int i = 0; i < N; i+=block_size) {
+        // note that not we store all ii and jj in the block, but must use only half of them
+        int j = i;
+        for (int jj = j; jj < j+block_size and jj < N; jj++) {
+            jtasks[task].push_back(jj);
+        }
+        for (int ii = i; ii < i+block_size and ii < N; ii++) {
+            itasks[task].push_back(ii);
+        }
+        task++;
+    }
+    ntasks = task;
+
+    if(mpi::orb_rank==0)std::cout<<ntasks<<" tasks = "<<iblocks<<" x ("<<iblocks<<"+1)/2"<<std::endl;
+
+    mpi::orb_bank.init_tasks(ntasks, mpi::orb_rank, mpi::comm_orb);
+
+    int count = 0;
+    while(true) { // fetch new tasks until all are completed
+        int it;
+        mpi::orb_bank.get_task(&it);
+        if(it<0)break;
+	count++;
+        OrbitalVector iorb_vec;
+	t_bankr.resume();
+        int nodesize=0;
+        for (int i = 0; i < itasks[it].size(); i++) {
+            int iorb = itasks[it][i];
+            Orbital phi_i;
+            mpi::orb_bank.get_orb_n(iorb, phi_i, 0);
+            iorb_vec.push_back(phi_i);
+            nodesize+=phi_i.getSizeNodes(NUMBER::Total);
+        }
+        if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" fetched total " <<nodesize/1024  <<" MB for "<<itasks[it].size()<<" orbitals "<<" time read "<<(int)((float)t_bankr.elapsed() * 1000) <<std::endl;
+	t_bankr.stop();
+        for (int j = 0; j < jtasks[it].size(); j++) {
+            int jorb = jtasks[it][j];
+            Orbital ket_j;
+            t_bankr.resume();
+            mpi::orb_bank.get_orb_n(jorb, ket_j, 0);
+            t_bankr.stop();
+            for (int i = 0; i < itasks[it].size(); i++) {
+                int iorb = itasks[it][i];
+                if( iorb < jorb) continue; //only j<=i is computed
+                t_dot.resume();
+                //std::cout<<iorb<<" dot "<<jorb<<std::endl;
+                S(iorb, jorb) = orbital::dot(iorb_vec[i], ket_j);
+                S(jorb, iorb) = std::conj(S(iorb, jorb));
+                t_dot.stop();
+            }
+        }
+    }
+
+    // Assumes each tasks has only defined its block
+    mpi::allreduce_matrix(S, mpi::comm_orb);
+    if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" Time overlap " << (int)((float)timer.elapsed() * 1000) << " ms "<<" Time bank read " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bank write " << (int)((float)t_bankw.elapsed() * 1000) <<" Time dot " << (int)((float)t_dot.elapsed() * 1000) <<" block size "<<block_size<<" ntasks executed: "<<count<<std::endl;
     return S;
 }
 

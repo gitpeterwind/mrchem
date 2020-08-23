@@ -181,19 +181,21 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
     }
 
     double precf = prec / 10; // multiplication1 precision
+    double spin_fac = getSpinFactor(phi_i, phi_j);
+    if (std::abs(spin_fac) < mrcpp::MachineZero) return;
 
     if (phi_i.hasReal() and phi_j.hasReal()) {
-        mrcpp::multiply(precf, phi_ij.real(), 1.0, phi_i.real(), phi_j.real(), -1, true, true);
+        mrcpp::multiply(precf, phi_ij.real(), spin_fac, phi_i.real(), phi_j.real(), -1, true, true);
     }
     if (phi_i.hasImag() and phi_j.hasImag()) { // multiply by +1.0 for complex conjugate and i*i
-        mrcpp::multiply(precf, phi_ij_tmp.real(), 1.0, phi_i.real(), phi_j.real(), -1, true, true);
+        mrcpp::multiply(precf, phi_ij_tmp.real(), spin_fac, phi_i.real(), phi_j.real(), -1, true, true);
         phi_ij.real().add(1.0, phi_ij_tmp.real());
     }
     if (phi_i.hasReal() and phi_j.hasImag()) { // multiply by -1.0 for complex conjugate of j
-        mrcpp::multiply(precf, phi_ij.imag(), -1.0, phi_i.real(), phi_j.imag(), -1, true, true);
+        mrcpp::multiply(precf, phi_ij.imag(), -spin_fac, phi_i.real(), phi_j.imag(), -1, true, true);
     }
     if (phi_i.hasImag() and phi_j.hasReal()) { // multiply by 1.0 for complex conjugate of j
-        mrcpp::multiply(precf, phi_ij_tmp.imag(), 1.0, phi_i.imag(), phi_j.real(), -1, true, true);
+        mrcpp::multiply(precf, phi_ij_tmp.imag(), spin_fac, phi_i.imag(), phi_j.real(), -1, true, true);
         phi_ij.imag().add(1.0, phi_ij_tmp.real());
     }
 

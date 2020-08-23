@@ -112,7 +112,7 @@ void Accelerator::rotate(const ComplexMatrix &U, bool all) {
 
 /** @brief Update iterative history with the latest orbitals and updates
  *
- * @param Phi: Next set ov orbitals
+ * @param Phi: Next set of orbitals
  * @param dPhi: Next set of orbital updates
  * @param F: Next Fock matrix
  * @param dF: Next Fock matrix update
