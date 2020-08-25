@@ -190,12 +190,12 @@ void ExchangePotential::calc_i_Int_jk_P(double prec,
         return;
     }
 
-    std::vector<mrcpp::FunctionTree<3> *> phi_opt_vec; // used to steer precision of Poisson application
-    if (phi_k.hasReal()) phi_opt_vec.push_back(&phi_k.real());
-    if (phi_k.hasImag()) phi_opt_vec.push_back(&phi_k.imag());
+    mrcpp::FunctionTreeVector<3> phi_opt_vec; // used to steer precision of Poisson application
+    if (phi_k.hasReal()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_k.real()));
+    if (phi_k.hasImag()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_k.imag()));
     if (phi_out_jij != nullptr) {
-        if (phi_j.hasReal()) phi_opt_vec.push_back(&phi_j.real());
-        if (phi_j.hasImag()) phi_opt_vec.push_back(&phi_j.imag());
+        if (phi_j.hasReal()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_j.real()));
+        if (phi_j.hasImag()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_j.imag()));
     }
 
     // compute V_ij = P[phi_ij]
