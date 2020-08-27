@@ -206,6 +206,9 @@ json driver::scf::run(const json &json_scf, Molecule &mol) {
     const auto &json_fock = json_scf["fock_operator"];
     driver::build_fock_operator(json_fock, mol, F, 0);
 
+    // Pre-compute internal exchange contributions
+    // if (F.getExchangeOperator()) F.getExchangeOperator()->setPreCompute();
+
     ///////////////////////////////////////////////////////////
     ///////////////   Setting Up Initial Guess   //////////////
     ///////////////////////////////////////////////////////////

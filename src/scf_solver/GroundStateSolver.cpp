@@ -254,7 +254,7 @@ json GroundStateSolver::optimize(Molecule &mol, FockOperator &F) {
 
         // Init Helmholtz operator
         HelmholtzVector H(helm_prec, F_mat.real().diagonal());
-        OrbitalVector Phi_np1;
+
         // Setup argument
         Timer t_arg;
         mrcpp::print::header(2, "Computing Helmholtz argument");
@@ -265,7 +265,7 @@ json GroundStateSolver::optimize(Molecule &mol, FockOperator &F) {
         if (plevel == 1) mrcpp::print::time(1, "Computing Helmholtz argument", t_arg);
 
         // Apply Helmholtz operator
-        Phi_np1 = H.apply(F.potential(), Phi_n, Psi);
+        OrbitalVector Phi_np1 = H.apply(F.potential(), Phi_n, Psi);
         Psi.clear();
         F.clear();
         orbital::orthonormalize(orb_prec, Phi_np1, F_mat);

@@ -23,13 +23,12 @@ namespace mrchem {
  *
  * @param[in] P Poisson operator (does not take ownership)
  * @param[in] Phi vector of orbitals which define the exchange operator
+ * @param[in] prec screening precision for exchange construction
  */
-ExchangePotential::ExchangePotential(PoissonOperator_p P, OrbitalVector_p Phi, double exchange_prec)
-        : orbitals(Phi)
-        , poisson(P) {
-    int nOrbs = this->orbitals->size();
-    this->exchange_prec = exchange_prec;
-}
+ExchangePotential::ExchangePotential(PoissonOperator_p P, OrbitalVector_p Phi, double prec)
+        : exchange_prec(prec)
+        , orbitals(Phi)
+        , poisson(P) {}
 
 /** @brief Perform a unitary transformation among the precomputed exchange contributions
  *
@@ -89,188 +88,123 @@ double ExchangePotential::getSpinFactor(Orbital phi_i, Orbital phi_j) const {
  *
  * @param[in] prec reqested precision
  *
- * This will NOT precompute the internal exchange between the orbtials defining
- * the operator, which is done explicitly using setupInternal().
+ * This will save the defining orbitals in the orbital bank
+ * and optionally compute the internal constributions.
  */
 void ExchangePotential::setup(double prec) {
+    if (mpi::world_size > 1 and mpi::bank_size < 1) MSG_ABORT("MPI bank required!");
     setApplyPrec(prec);
-
-    int nOrbs = this->orbitals->size();
+    setupBank();
+    if (this->pre_compute) setupInternal(prec);
 }
 
 /** @brief Clears the Exchange Operator
  *
- *  Clears deletes the precomputed exchange contributions.
+ *  Deletes the precomputed exchange contributions and
+ *  clears the orbital bank.
  */
 void ExchangePotential::clear() {
-    this->exchange.clear();
+    clearInternal();
+    clearBank();
     clearApplyPrec();
 }
 
-/** @brief Applies operator potential
- *
- *  @param[in] inp input orbital
- *
- * The exchange potential is applied to the given orbital. Checks first if this
- * particular exchange contribution has been precomputed.
- */
-Orbital ExchangePotential::apply(Orbital inp) {
-    if (this->apply_prec < 0.0) {
-        MSG_ERROR("Uninitialized operator");
-        return inp.paramCopy();
-    }
-    int i = testPreComputed(inp);
-    if (i < 0) {
-        if (!mpi::my_orb(inp)) {
-            MSG_WARN("Not computing exchange contributions that are not mine");
-            return inp.paramCopy();
-        }
-        println(4, "On-the-fly exchange");
-        return calcExchange(inp);
-    } else {
-        println(4, "Precomputed exchange");
-        Orbital out = this->exchange[i].paramCopy();
-        qmfunction::deep_copy(out, this->exchange[i]);
-        return out;
-    }
+void ExchangePotential::clearBank() {
+    mpi::barrier(mpi::comm_orb);
+    if (mpi::bank_size > 0) mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
 }
 
-/** @brief Applies the adjoint of the operator
- *  \param[in] inp input orbital
+/** @brief computes phi_k*Int(phi_i^dag*phi_j/|r-r'|)
  *
- * NOT IMPLEMENTED
- */
-Orbital ExchangePotential::dagger(Orbital inp) {
-    NOT_IMPLEMENTED_ABORT;
-}
-
-/** @brief computes phi_k*Int(phi_i*phi_j^dag/|r-r'|)
- *
- *  \param[in] phi_i orbital to be multiplied by phi_j^dag
- *  \param[in] phi_j orbital to be conjugated and multiplied by phi_i
  *  \param[in] phi_k orbital to be multiplied after application of Poisson operator
- *  \param[out] phi_out_kij result
- *  \param[out] phi_out_jij (optional), result where phi_k is replaced by phi_j (i.e. phi_k not used, and phi_j used
+ *  \param[in] phi_i orbital to be conjugated and multiplied by phi_j
+ *  \param[in] phi_j orbital to be multiplied by phi_i^dag
+ *  \param[out] out_kij result
+ *  \param[out] out_jji (optional), result where phi_k is replaced by phi_j (i.e. phi_k not used, and phi_j used
  * twice)
  *
- * Computes the product of phi_i and complex conjugate of phi_j,
- * then applies the Poisson operator, and multiplies the result by phi_k (and optionally by phi_j).
- * The result is given in phi_out.
+ * Computes the product of complex conjugate of phi_i and phi_j,
+ * then applies the Poisson operator, and multiplies the result
+ * by phi_k (and optionally by phi_j). The result is given in phi_out.
  */
-void ExchangePotential::calc_i_Int_jk_P(double prec,
-                                        Orbital &phi_i,
-                                        Orbital &phi_j,
-                                        Orbital &phi_k,
-                                        Orbital &phi_out_kij,
-                                        Orbital *phi_out_jij) {
+void ExchangePotential::calcExchange_kij(double prec,
+                                         Orbital phi_k,
+                                         Orbital phi_i,
+                                         Orbital phi_j,
+                                         Orbital &out_kij,
+                                         Orbital *out_jji) {
+    Timer timer_tot;
     mrcpp::PoissonOperator &P = *this->poisson;
 
-    Timer timer;
-    auto plevel = Printer::getPrintLevel();
-    phi_out_kij.free(NUMBER::Total);
-    phi_out_kij = phi_k.paramCopy(); // can be different?
+    // set precisions
+    double prec_m1 = prec / 10;  // first multiplication
+    double prec_p = prec * 10;   // Poisson application
+    double prec_m2 = prec / 100; // second multiplication
 
-    // compute phi_ij = phi_i * phi_j^dag
-    Timer timermult;
-    Orbital phi_ij = phi_i.paramCopy();
+    // compute rho_ij = phi_i^dagger * phi_j
+    // if the product is smaller than the target precision,
+    // the result is expected to be negligible
+    Timer timer_ij;
+    Orbital rho_ij = phi_i.paramCopy();
+    qmfunction::multiply(rho_ij, phi_i.dagger(), phi_j, prec_m1, true, true);
+    timer_ij.stop();
+    if (rho_ij.norm() < prec) return;
 
-    double precf = prec / 10; // multiplication1 precision
+    auto N_i = phi_i.getNNodes(NUMBER::Total);
+    auto N_j = phi_j.getNNodes(NUMBER::Total);
+    auto N_ij = rho_ij.getNNodes(NUMBER::Total);
+    auto norm_ij = rho_ij.norm();
 
-    qmfunction::multiply(phi_ij, phi_i, phi_j, precf, true, true);
-
-    double norma = phi_ij.norm();
-    int Ni = phi_j.getNNodes(NUMBER::Total);
-    int Nj = phi_i.getNNodes(NUMBER::Total);
-    int N0 = phi_ij.getNNodes(NUMBER::Total);
-    timermult.stop();
-
-    // if the product is smaller than the precision, the result is expected to be negligible
-    if (phi_ij.norm() < prec) {
-        phi_ij.release();
-        return;
-    }
-
-    mrcpp::FunctionTreeVector<3> phi_opt_vec; // used to steer precision of Poisson application
+    // prepare vector used to steer precision of Poisson application
+    mrcpp::FunctionTreeVector<3> phi_opt_vec;
     if (phi_k.hasReal()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_k.real()));
     if (phi_k.hasImag()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_k.imag()));
-    if (phi_out_jij != nullptr) {
+    if (out_jji != nullptr) {
         if (phi_j.hasReal()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_j.real()));
         if (phi_j.hasImag()) phi_opt_vec.push_back(std::make_tuple(1.0, &phi_j.imag()));
     }
 
-    // compute V_ij = P[phi_ij]
-    Orbital V_ij = phi_k.paramCopy();
-    Timer timerV;
-
-    precf = prec * 10; // Poisson application precision.
-
-    if (phi_ij.hasReal()) {
+    // compute V_ij = P[rho_ij]
+    Timer timer_p;
+    Orbital V_ij = rho_ij.paramCopy();
+    if (rho_ij.hasReal()) {
         V_ij.alloc(NUMBER::Real);
-        mrcpp::apply(precf, V_ij.real(), P, phi_ij.real(), phi_opt_vec, -1, true);
+        mrcpp::apply(prec_p, V_ij.real(), P, rho_ij.real(), phi_opt_vec, -1, true);
     }
-    if (phi_ij.hasImag()) {
+    if (rho_ij.hasImag()) {
         V_ij.alloc(NUMBER::Imag);
-        mrcpp::apply(precf, V_ij.imag(), P, phi_ij.imag(), phi_opt_vec, -1, true); // NB: phi_opt.real() must be used
+        mrcpp::apply(prec_p, V_ij.imag(), P, rho_ij.imag(), phi_opt_vec, -1, true);
     }
+    rho_ij.release();
+    timer_p.stop();
+    auto N_p = V_ij.getNNodes(NUMBER::Total);
+    auto norm_p = V_ij.norm();
 
-    phi_ij.release();
-    double normV = V_ij.norm();
-    timerV.stop();
-    int N2 = V_ij.getNNodes(NUMBER::Total);
+    // compute out_kij = phi_k * V_ij
+    Timer timer_kij;
+    qmfunction::multiply(out_kij, phi_k, V_ij, prec_m2, true, true);
+    auto N_kij = out_kij.getNNodes(NUMBER::Total);
+    auto norm_kij = out_kij.norm();
+    timer_kij.stop();
 
-    // compute phi_out_kij = phi_k * V_ij
-    Timer timermult2;
-
-    precf = prec / 100; // multiplication2 precision.
-
-    phi_out_kij = phi_k.paramCopy();
-    qmfunction::multiply(phi_out_kij, phi_k, V_ij, precf, true, true);
-
-    int N3 = phi_out_kij.getNNodes(NUMBER::Total);
-    double normjij = phi_out_kij.norm();
-    timermult2.stop();
-    Timer timermult3;
-    int N4 = 0;
-    double normiij = 0.0;
-    if (phi_out_jij != nullptr) {
-        // compute phi_out_jij = phi_j * V_ij
-        *phi_out_jij = phi_j.paramCopy();
-        qmfunction::multiply(*phi_out_jij, phi_j, V_ij, precf, true, true);
-        N4 = phi_out_jij->getNNodes(NUMBER::Total);
+    // compute out_jji = phi_j * V_ji = phi_j * V_ij^dagger
+    Timer timer_jji;
+    auto N_jji = 0;
+    auto norm_jji = 0.0;
+    if (out_jji != nullptr) {
+        qmfunction::multiply(*out_jji, phi_j, V_ij.dagger(), prec_m2, true, true);
+        N_jji = out_jji->getNNodes(NUMBER::Total);
+        norm_jji = out_jji->norm();
     }
-    timermult3.stop();
-    V_ij.release();
+    timer_jji.stop();
 
     println(4,
-            " time " << (int)((float)timer.elapsed() * 1000) << " ms "
-                     << " mult1:" << (int)((float)timermult.elapsed() * 1000) << " Pot:"
-                     << (int)((float)timerV.elapsed() * 1000) << " mult2:" << (int)((float)timermult2.elapsed() * 1000)
-                     << " " << (int)((float)timermult3.elapsed() * 1000) << " Nnodes: " << Ni << " " << Nj << " " << N0
-                     << " " << N2 << " " << N3 << " " << N4 << " norms " << norma << " " << normV << " " << normjij
-                     << "  " << normiij);
-}
-
-/** @brief Test if a given contribution has been precomputed
- *
- * @param[in] phi_p orbital for which the check is performed
- *
- * If the given contribution has been precomputed, it is simply copied,
- * without additional recalculation.
- */
-int ExchangePotential::testPreComputed(Orbital phi_p) const {
-    const OrbitalVector &Phi = *this->orbitals;
-    const OrbitalVector &Ex = this->exchange;
-
-    int out = -1;
-    if (Ex.size() == Phi.size()) {
-        for (int i = 0; i < Phi.size(); i++) {
-            if (&Phi[i].real() == &phi_p.real() and &Phi[i].imag() == &phi_p.imag()) {
-                out = i;
-                break;
-            }
-        }
-    }
-    return out;
+            " time " << (int)((float)timer_tot.elapsed() * 1000) << " ms "
+                     << " mult1:" << (int)((float)timer_ij.elapsed() * 1000) << " Pot:"
+                     << (int)((float)timer_p.elapsed() * 1000) << " mult2:" << (int)((float)timer_kij.elapsed() * 1000)
+                     << " " << (int)((float)timer_jji.elapsed() * 1000) << " Nnodes: " << N_i << " " << N_j << " "
+                     << N_ij << " " << N_p << " " << N_kij << " " << N_jji << " norms " << norm_ij << " " << norm_p
+                     << " " << norm_kij << "  " << norm_jji);
 }
 
 } // namespace mrchem

@@ -86,10 +86,13 @@ void mpi::initialize() {
     MPI_Comm comm_remainder;         // clients only
 
     // set bank_size automatically if not defined by user
-    if (mpi::world_size > 1 and mpi::bank_size < 0) mpi::bank_size = mpi::world_size / 6 + 1;
-    mpi::bank_size = std::max(0, mpi::bank_size);
-
+    if (mpi::world_size < 2) {
+        mpi::bank_size = 0;
+    } else if (mpi::bank_size < 0) {
+        mpi::bank_size = mpi::world_size / 6 + 1;
+    }
     if (mpi::world_size - mpi::bank_size < 1) MSG_ABORT("No MPI ranks left for working!");
+
     mpi::bankmaster.resize(mpi::bank_size);
     for (int i = 0; i < mpi::bank_size; i++) {
         mpi::bankmaster[i] = mpi::world_size - i - 1; // rank of the bankmasters
