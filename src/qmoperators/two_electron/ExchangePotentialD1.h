@@ -29,12 +29,16 @@ public:
     friend class ExchangeOperator;
 
 private:
-    void setupInternal(double prec);
-    int testPreComputed(Orbital phi_p) const;
+    void setupBank() override;
+    int testInternal(Orbital phi_p) const override;
+    void setupInternal(double prec) override;
     Orbital calcExchange(Orbital phi_p);
-    void calcInternal(int i);
-    void calcInternal(int i, int j);
-    void setupInternal_bank(double prec);
+
+    Orbital apply(Orbital phi_p) override;
+    Orbital dagger(Orbital phi_p) override;
+
+    using QMOperator::apply;
+    using QMOperator::dagger;
 };
 
 } // namespace mrchem

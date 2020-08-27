@@ -22,7 +22,7 @@ class ExchangeOperator final : public RankZeroTensorOperator {
 public:
     ExchangeOperator(std::shared_ptr<mrcpp::PoissonOperator> P,
                      std::shared_ptr<OrbitalVector> Phi,
-                     double exchange_prec) {
+                     double exchange_prec = -1.0) {
         exchange = std::make_shared<ExchangePotentialD1>(P, Phi, exchange_prec);
 
         // Invoke operator= to assign *this operator
@@ -35,7 +35,7 @@ public:
                      std::shared_ptr<OrbitalVector> Phi,
                      std::shared_ptr<OrbitalVector> X,
                      std::shared_ptr<OrbitalVector> Y,
-                     double exchange_prec) {
+                     double exchange_prec = -1.0) {
         exchange = std::make_shared<ExchangePotentialD2>(P, Phi, X, Y, exchange_prec);
 
         // Invoke operator= to assign *this operator
@@ -47,7 +47,7 @@ public:
     ~ExchangeOperator() override = default;
 
     auto &getPoisson() { return exchange->getPoisson(); }
-    void setupInternal(double prec) { exchange->setupInternal(prec); }
+    void setPreCompute() { exchange->setPreCompute(); }
     void rotate(const ComplexMatrix &U) { exchange->rotate(U); }
 
     ComplexDouble trace(OrbitalVector &Phi) { return 0.5 * RankZeroTensorOperator::trace(Phi); }
