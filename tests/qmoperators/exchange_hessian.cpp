@@ -107,9 +107,9 @@ TEST_CASE("ExchangeHessian", "[exchange_hessian]") {
     int i = 0;
     DoubleMatrix E = DoubleMatrix::Zero(Phi.size(), Phi.size());
 
-    E(0, 0) = 0.0630355499;
-    E(1, 1) = 0.0673407628;
-    E(2, 2) = 0.0673407628;
+    E(0, 0) = 0.0625327715;
+    E(1, 1) = 0.0667432283;
+    E(2, 2) = 0.0667432283;
 
     V.setup(prec);
     SECTION("apply") {
