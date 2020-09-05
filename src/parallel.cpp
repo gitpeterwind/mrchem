@@ -73,7 +73,7 @@ int task_bank;
 
 } // namespace mpi
 
-int const id_shift = 100000000; // to ensure that nodes, orbitals and functions do not collide
+int id_shift; // to ensure that nodes, orbitals and functions do not collide
 
 void mpi::initialize() {
     omp_set_dynamic(0);
@@ -147,7 +147,11 @@ void mpi::initialize() {
         mpi::task_bank=mpi::bankmaster[mpi::orb_bank_size];
     }
 
-
+    void *val;
+    int flag;
+    MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &val, &flag); // max value allowed by MPI for tags
+    id_shift = *(int*)val / 2;
+    if(mpi::world_rank==0) std::cout<<" max tag value "<<*(int*)val<<std::endl;
     if (mpi::is_bank) {
         // define rank among bankmasters
         mpi::bank_rank = mpi::world_rank % mpi::bank_size;
@@ -486,7 +490,9 @@ void Bank::open() {
     deposits.resize(1); // we reserve 0, since it is the value returned for undefined key
     queue.resize(1);    // we reserve 0, since it is the value returned for undefined key
 
-    int tot_ntasks;
+    int tot_ntasks = 0;
+    int tot_ntasksij[2];
+    std::vector<int> tot_ntasks_2D;
     int next_task = 0;
     std::map<int, std::vector<int>> readytasks;
     std::map<int, std::vector<int>> banks_fromid;
@@ -576,7 +582,7 @@ void Bank::open() {
             // make a new deposit
             int exist_flag = 0;
             if (id2ix[status.MPI_TAG]) {
-                std::cout<<"WARNING: id "<<status.MPI_TAG<<" exists already"<<std::endl;
+	      std::cout<<"WARNING: id "<<status.MPI_TAG<<" exists already"<<" "<<status.MPI_SOURCE<<std::endl;
                 ix = id2ix[status.MPI_TAG]; // the deposit exist from before. Will be overwritten
                 exist_flag = 1;
                 if (message == SAVE_DATA and !deposits[ix].hasdata) {
@@ -658,13 +664,49 @@ void Bank::open() {
         }
 
         if (message == INIT_TASKS) {
-            MPI_Recv(&tot_ntasks, 1, MPI_INTEGER, status.MPI_SOURCE, status.MPI_TAG, mpi::comm_bank, &status);
+            MPI_Recv(&tot_ntasksij, 2, MPI_INTEGER, status.MPI_SOURCE, status.MPI_TAG, mpi::comm_bank, &status);
+	    tot_ntasks = tot_ntasksij[0]*tot_ntasksij[1];
+	    tot_ntasks_2D.resize(tot_ntasksij[1]);
+	    for (int i = 0; i < tot_ntasksij[1]; i++) tot_ntasks_2D[i] = tot_ntasksij[0]; // each j has  tot_ntasksij[0] i blocks
             next_task = 0;
-       }
+        }
         if (message == GET_NEXTTASK) {
             int task = next_task;
             if(next_task >= tot_ntasks) task = -1; // flag to show all tasks are assigned
             MPI_Send(&task, 1, MPI_INTEGER, status.MPI_SOURCE, 843, mpi::comm_bank);
+            next_task++;
+        }
+        if (message == GET_NEXTTASK_2D) {
+            int task = next_task;
+            int task_2D[2];
+            if(next_task >= tot_ntasks) {
+                task = -1; // flag to show all tasks are assigned
+                task_2D[0] = -1;
+                task_2D[1] = -1;
+  	    } else {
+	      //if possible, give a task with same j (=status.MPI_TAG)
+	      if(tot_ntasks_2D[status.MPI_TAG]>0){
+                  tot_ntasks_2D[status.MPI_TAG]--; // next i for that j
+                  task = status.MPI_TAG * tot_ntasksij[0] + tot_ntasks_2D[status.MPI_TAG];
+                  task_2D[0] = tot_ntasks_2D[status.MPI_TAG];
+                  task_2D[1] = status.MPI_TAG; // same j as asked
+	      } else {
+                  //find any available task
+                  int err=1;
+                  for (int j = 0; j<tot_ntasks_2D.size(); j++) {
+                      int jj = (j+status.MPI_TAG)%tot_ntasks_2D.size();// we want to spread among i
+                      if(tot_ntasks_2D[jj]>0){
+                          tot_ntasks_2D[jj]--;
+                          task_2D[0] = tot_ntasks_2D[jj];
+                          task_2D[1] = jj;
+                          err = 0;
+                          break;
+                      }
+                  }
+                  if (err) std::cout<<"ERROR find 2Dtask"<<std::endl;
+	      }
+	    }
+            MPI_Send(task_2D, 2, MPI_INTEGER, status.MPI_SOURCE, 853, mpi::comm_bank);
             next_task++;
         }
         if (message == PUT_READYTASK) {
@@ -705,13 +747,19 @@ void Bank::open() {
             // make a list of n banks that will store the orbital id.
             std::vector<int> banks(nbanks); // the ranks of the banks to whom to send the orbital
             if(banks_fromid[id].size()>0){
-                std::cout<<mpi::orb_rank<<"WARNING: bank id "<<id<<" is already defined "<<banks_fromid[id].size()<<std::endl;
+	      std::cout<<mpi::orb_rank<<"WARNING: bank id "<<id<<" is already defined "<<banks_fromid[id].size()<<" "<<status.MPI_SOURCE<<std::endl;
             }
             banks_fromid[id].clear();
             for (int i = 0; i < nbanks; i++) {
                 //                banks[i] = (id+i) % mpi::orb_bank_size;
                 banks[i] = bank_queue.getFront();
-                bank_queue.moveToBack(banks[i]);
+                // also banks which are on the same node are marked as "busy"
+                //                std::cout<<" put "<<(banks[i])<<std::endl;
+                //                for (int ii = 0; ii < 8; ii++) if(banks[i]-banks[i]%8 + ii==mpi::orb_bank_size)std::cout<<" error "<<banks[i]-banks[i]%8 + ii<<" "<<mpi::orb_bank_size<<" tbank"<<mpi::task_bank <<std::endl;
+                //      for (int ii = 0; ii < 8; ii++) if(banks[i]-banks[i]%8 + ii!=0) bank_queue.moveToBack(banks[i]-banks[i]%8 + ii-1); // asummes 8 mpi per node, ranks starting from a multiple of 8
+               bank_queue.moveToBack(banks[i]);// mark last-> busiest
+               //banks[i] = rand()% mpi::orb_bank_size;
+               //if(i>0)banks[i] = (banks[0]+ 1 + rand()% (mpi::orb_bank_size-1))% mpi::orb_bank_size;
                 banks_fromid[id].push_back(banks[i]); // list of banks that hold the orbital id
           }
             MPI_Send(banks.data(), nbanks, MPI_INTEGER, status.MPI_SOURCE, 846, mpi::comm_bank);
@@ -729,10 +777,11 @@ void Bank::open() {
                     b_rank = rank;
                 }
             }
-
             //            std::cout<<" giving bank "<<b_rank<<" score "<<queue_n[b_rank]<<" Timestamp "<<bank_queue.getTimestamp(b_rank) <<" "<<queue_n[b_rank]<<std::endl;
             queue_n[b_rank] = request_counter++;
-            bank_queue.moveToBack(b_rank); // mark as busy
+            // also banks which are on the same node are marked as "busy"
+            //            for (int ii = 0; ii < 8; ii++)  if(b_rank-b_rank%8+ii!=0) bank_queue.moveToBack(b_rank-b_rank%8+ii-1); // asummes 8 mpi per node, ranks starting from a multiple of 8
+            bank_queue.moveToBack(b_rank); // mark last-> busiest
             MPI_Send(&b_rank, 1, MPI_INTEGER, status.MPI_SOURCE, 847, mpi::comm_bank);
        }
     }
@@ -743,7 +792,8 @@ void Bank::open() {
 int Bank::put_orb(int id, Orbital &orb) {
 #ifdef HAVE_MPI
     // for now we distribute according to id
-    if (id > id_shift) MSG_WARN("Bank id should be less than id_shift (100000000)");
+  if (id > id_shift) std::cout<<"WARNING: Bank id should be less than id_shift ("<<id_shift<<"), found id="<<id<<std::endl;
+    if (id > id_shift) MSG_WARN("Bank id should be less than id_shift");
     MPI_Send(&SAVE_ORBITAL, 1, MPI_INTEGER, mpi::bankmaster[id % mpi::orb_bank_size], id, mpi::comm_bank);
     mpi::send_orbital(orb, mpi::bankmaster[id % mpi::orb_bank_size], id, mpi::comm_bank);
 #endif
@@ -928,26 +978,55 @@ void Bank::clear(int ix) {
 #endif
 }
 
-void Bank::init_tasks(int ntasks, int rank, MPI_Comm comm) {
+void Bank::init_tasks(int ntasksi, int ntasksj, int rank, MPI_Comm comm) {
 #ifdef HAVE_MPI
     mpi::barrier(comm); // NB: everybody must be done before init
     int dest = mpi::task_bank;
+    int ntasks[2];
+    ntasks[0]=ntasksi;
+    ntasks[1]=ntasksj;
     // NB: Must be Synchronous send (SSend), because others must not
     // be able to start
     if(rank == 0) {
         MPI_Ssend(&INIT_TASKS, 1, MPI_INTEGER, dest, 0, mpi::comm_bank);
-        MPI_Ssend(&ntasks, 1, MPI_INTEGER, dest, 0, mpi::comm_bank);
+        MPI_Ssend(ntasks, 2, MPI_INTEGER, dest, 0, mpi::comm_bank);
     }
     mpi::barrier(comm); // NB: nobody must start before init is ready
  #endif
 }
 
-void Bank::get_task(int *task, int id) {
+void Bank::init_tasks(int ntaskstot, int rank, MPI_Comm comm) {
+#ifdef HAVE_MPI
+    mpi::barrier(comm); // NB: everybody must be done before init
+    int dest = mpi::task_bank;
+    int ntasks[2];
+    ntasks[0] = ntaskstot;
+    ntasks[1] = 1;
+    // NB: Must be Synchronous send (SSend), because others must not
+    // be able to start
+    if(rank == 0) {
+        MPI_Ssend(&INIT_TASKS, 1, MPI_INTEGER, dest, 0, mpi::comm_bank);
+        MPI_Ssend(ntasks, 2, MPI_INTEGER, dest, 0, mpi::comm_bank);
+    }
+    mpi::barrier(comm); // NB: nobody must start before init is ready
+ #endif
+}
+
+void Bank::get_task(int *task_2D, int i) {
 #ifdef HAVE_MPI
     MPI_Status status;
     int dest = mpi::task_bank;
+    MPI_Send(&GET_NEXTTASK_2D, 1, MPI_INTEGER, dest, i, mpi::comm_bank);
+    MPI_Recv(task_2D, 2, MPI_INTEGER, dest, 853, mpi::comm_bank, &status);
+#endif
+}
 
-    MPI_Send(&GET_NEXTTASK, 1, MPI_INTEGER, dest, id, mpi::comm_bank);
+
+void Bank::get_task(int *task) {
+#ifdef HAVE_MPI
+    MPI_Status status;
+    int dest = mpi::task_bank;
+    MPI_Send(&GET_NEXTTASK, 1, MPI_INTEGER, dest, 0, mpi::comm_bank);
     MPI_Recv(task, 1, MPI_INTEGER, dest, 843, mpi::comm_bank, &status);
 #endif
 }

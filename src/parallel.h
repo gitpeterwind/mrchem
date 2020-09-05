@@ -131,7 +131,9 @@ public:
     std::vector<int> get_totalsize();
     // task manager:
     void init_tasks(int ntasks, int rank, MPI_Comm comm);
-    void get_task(int *task, int id = mpi::orb_rank);
+    void init_tasks(int ntasksi, int ntasksj, int rank, MPI_Comm comm);
+    void get_task(int *task);
+    void get_task(int *task, int i);
     void put_readytask(int id, int i);
     void del_readytask(int id, int i);
     std::vector<int> get_readytasks(int i, int del = 0);
@@ -162,6 +164,7 @@ private:
     int const GET_ORBITALVEC_AND_WAIT = 22;
     int const GET_ORB_N = 23;
     int const PUT_ORB_N = 24;
+    int const GET_NEXTTASK_2D = 25;
     std::map<int, int> id2ix;
     std::vector<bank::deposit> deposits;
     std::map<int, int> id2qu;
