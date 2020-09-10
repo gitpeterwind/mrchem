@@ -381,7 +381,7 @@ void ExchangePotentialD1::setupInternal_bankqueue(double prec) {
             iorb_vec.push_back(phi_i);
             nodesize+=phi_i.getSizeNodes(NUMBER::Total);
         }
-        if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" fetched total " <<nodesize/1024  <<" MB for "<<itasks[it].size()<<" orbitals "<<std::endl;
+        //        if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" fetched total " <<nodesize/1024  <<" MB for "<<itasks[it].size()<<" orbitals "<<std::endl;
 	std::vector<QMFunctionVector> jijfunc_vec(N);
         for (int j = 0; j < jtasks[it].size(); j++) {
             int jorb = jtasks[it][j];

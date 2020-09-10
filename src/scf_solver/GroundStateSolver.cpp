@@ -308,14 +308,12 @@ json GroundStateSolver::optimize(Molecule &mol, FockOperator &F) {
         // Rotate orbitals
         if (needLocalization(nIter, converged)) {
             // brutal "smoothing" of the orbitals
-            for (auto j :Phi_n) if(mpi::my_orb(j) and mpi::orb_rank<2)std::cout<<"size before crop "<<j.getSizeNodes(NUMBER::Total)<<std::endl;
-            for (auto j :Phi_n) if(nIter<20 and mpi::my_orb(j))j.crop(orb_prec*100);
-            for (auto j :Phi_n) if(mpi::my_orb(j) and mpi::orb_rank<2)std::cout<<"size after crop "<<j.getSizeNodes(NUMBER::Total)<<std::endl;
+	  //            for (auto j :Phi_n) if(mpi::my_orb(j) and mpi::orb_rank<2)std::cout<<" size before crop "<<j.getSizeNodes(NUMBER::Total)<<std::endl;
+	  // for (auto j :Phi_n) if(nIter<20 and mpi::my_orb(j))j.crop(orb_prec*100);
+	  // for (auto j :Phi_n) if(mpi::my_orb(j) and mpi::orb_rank<2)std::cout<<" size after crop "<<j.getSizeNodes(NUMBER::Total)<<std::endl;
             ComplexMatrix U_mat = orbital::localize(orb_prec, Phi_n, F_mat);
             F.rotate(U_mat);
-            for (auto j :Phi_n) if(mpi::my_orb(j) and mpi::orb_rank<2)std::cout<<"size before second crop "<<j.getSizeNodes(NUMBER::Total)<<std::endl;
-            for (auto j :Phi_n) if(nIter<20 and mpi::my_orb(j))j.crop(orb_prec*1);
-            for (auto j :Phi_n) if(mpi::my_orb(j) and mpi::orb_rank<2)std::cout<<"size after second crop "<<j.getSizeNodes(NUMBER::Total)<<std::endl;
+            //            for (auto j :Phi_n) if(mpi::my_orb(j) and mpi::orb_rank<2)std::cout<<" size after localization "<<j.getSizeNodes(NUMBER::Total)<<std::endl;
 
             //kain.rotate(U_mat, false);
             kain.clear();

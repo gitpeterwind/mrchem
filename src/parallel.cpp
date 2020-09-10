@@ -92,7 +92,7 @@ void mpi::initialize() {
     MPI_Comm comm_remainder;         // clients only
 
     // set bank_size automatically if not defined by user
-    if (mpi::world_size > 1 and mpi::bank_size < 0) mpi::bank_size = mpi::world_size / 6 + 1;
+    if (mpi::world_size > 1 and mpi::bank_size < 0) mpi::bank_size = mpi::world_size / 3 + 1;
     mpi::bank_size = std::max(0, mpi::bank_size);
 
     if (mpi::world_size - mpi::bank_size < 1) MSG_ABORT("No MPI ranks left for working!");
@@ -150,7 +150,7 @@ void mpi::initialize() {
     void *val;
     int flag;
     MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &val, &flag); // max value allowed by MPI for tags
-    id_shift = *(int*)val / 2;
+    id_shift = *(int*)val / 2; // half is reserved for non orbital. Maybe not necessary
     if(mpi::world_rank==0) std::cout<<" max tag value "<<*(int*)val<<std::endl;
     if (mpi::is_bank) {
         // define rank among bankmasters

@@ -305,7 +305,7 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
     for (int i = 0; i < N; i++) totorbsize += orb_sizesvec[i]/1024; // NB: use MB to avoid overflow
     int avorbsize = totorbsize/N;
 
-    // we do not want to store temporarily more than 1/2 of the total memory for orbitals. 
+    // we do not want to store temporarily more than 1/2 of the total memory for orbitals.
     int maxBlockSize = omp::n_threads * 2000 / 2 / avorbsize; //assumes 2GB available per thread
     if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" Time bank write all orb " << (int)((float)t_bankw.elapsed() * 1000) <<" av size:"<<avorbsize<<"MB. Maxblocksize:"<<maxBlockSize<<std::endl;
 
@@ -330,7 +330,7 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
 	jblock_size--;
 	iblock_size-=4;
         //iblock_size = std::max(1,jblock_size*5);
-        iblocks = (N + iblock_size -1)/iblock_size;	
+        iblocks = (N + iblock_size -1)/iblock_size;
 	jblocks = (N + jblock_size -1)/jblock_size;
 	ntasks = iblocks * jblocks;
       }
@@ -355,7 +355,7 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
       // we fetch orbitals within the same iblocks in different orders in order to avoid overloading the bank
        for (int i = 0; i < isize; i++) itasks[ib].push_back(orb_map[ib][(i+mpi::orb_rank)%isize].second);
      }
-     
+
      for (int jb = 0; jb < jblocks; jb++) {
       // we simply take the orbitals in the original order
          for (int j = jb*jblock_size; j < (jb+1)*jblock_size and j<N; j++) jtasks[jb].push_back(j);
@@ -508,7 +508,6 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
     if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" Time rotate1 " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bank read " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bank read xtra " << (int)((float)t_bankrx.elapsed() * 1000) <<" xorb="<<countx<<" xundeleted="<<countxok<<" Time bank write " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" Time task manager " << (int)((float)t_task.elapsed() * 1000) <<" Time last task " << (int)((float)t_last.elapsed() * 1000) <<" block size "<<iblock_size<<"x"<<jblock_size<<" ntasks executed: "<<count<<" max j size "<<maxjsize<<std::endl;
     mpi::barrier(mpi::comm_orb);
     if(mpi::orb_rank==0)std::cout<<" Time rotate1 all " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<std::endl;
-    mpi::barrier(mpi::comm_orb);
 
     // by now most of the operations are finished. We add only contributions to own orbitals.
     count = 0;
@@ -545,7 +544,7 @@ OrbitalVector orbital::rotate_bank(OrbitalVector &Phi, const ComplexMatrix &U, d
         qmfunction::linear_combination(out[jorb], coef_vec, ifunc_vec, priv_prec);
         t_add.stop();
     }
-    if(mpi::orb_rank==0)std::cout<<" Time total " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bankr2 " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bankw2 " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" Time task manager " << (int)((float)t_task.elapsed() * 1000) <<" added "<<count<<" block size "<<block_size<<std::endl;
+    if(mpi::orb_rank==0)std::cout<<" Time total " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time bankr2 " << (int)((float)t_bankr.elapsed() * 1000) <<" Time bankw2 " << (int)((float)t_bankw.elapsed() * 1000) <<" Time add " << (int)((float)t_add.elapsed() * 1000) <<" Time task manager " << (int)((float)t_task.elapsed() * 1000) <<" added "<<count<<std::endl;
 
     mpi::barrier(mpi::comm_orb);
     if(mpi::orb_rank==0)std::cout<<" Time total all " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<std::endl;
@@ -1123,7 +1122,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &Bra, OrbitalVecto
         }
     }
     if(mpi::orb_rank==0)std::cout<<" bra, ket:maxBlockSize "<<maxBlockSize<<" avorb size "<<avorbsize<<" MB "<<" max "<<maxorbsize<<" MB "<<"(orb "<<ilargest<<")"<<std::endl;
-    
+
     // divide into a fixed number of tasks
     int iblock_size, jblock_size; // S is partitioned in blocks with sizes iblock_size x jblock_size
     iblock_size = std::min(maxBlockSize, static_cast<int>(NB/sqrt(3*mpi::orb_size) + 0.5 ));
@@ -1163,15 +1162,15 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &Bra, OrbitalVecto
 	// we fetch orbitals within the same iblocks in different orders in order to avoid overloading the bank
 	for (int i = 0; i < isize; i++) itasks[ib].push_back(iorb_map[ib][(i+mpi::orb_rank)%isize].second);
     }
-    
+
     if(sym) {
       // we must have same mapping for i and j
       for (int jb = 0; jb < jblocks; jb++) {
 	int isize = iorb_map[jb].size(); // NB: iorb
-	for (int i = 0; i < isize; i++) jtasks[jb].push_back(iorb_map[jb][(i+mpi::orb_rank)%isize].second);	
+	for (int i = 0; i < isize; i++) jtasks[jb].push_back(iorb_map[jb][(i+mpi::orb_rank)%isize].second);
       }
    } else {
-    
+
     for (int jb = 0; jb < jblocks; jb++) {
 	int jsize = jorb_map[jb].size();
 	// we fetch orbitals within the same jblocks in different orders in order to avoid overloading the bank
@@ -1182,7 +1181,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &Bra, OrbitalVecto
     mpi::orb_bank.init_tasks(iblocks, jblocks, mpi::orb_rank, mpi::comm_orb);// note that the bank does not know about the symmetri. Symmetri must be taken care of in the loop
 
     int previous_ib = -1;
-    int previous_jb = -1;    
+    int previous_jb = -1;
     int count = 0;
     OrbitalVector iorb_vec;
     OrbitalVector jorb_vec;
@@ -1193,7 +1192,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &Bra, OrbitalVecto
 	int ib = (task_2D[0]+jb)%iblocks; // NB: the blocks are shifted diagonally, so that not all processes start with the first iblock
 
 	if(jb<0) break; // no more tasks in queue
-	
+
 	if(sym) {
 	  // block symmetry: we only take every second block. (Almost a checker board but one white diagonal is missing!)
 	  // X0X0X0X
@@ -1202,7 +1201,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &Bra, OrbitalVecto
 	  // X0XX0X0
 	  // 0X0XX0X
 	  // X0X0XX0
-	  // 0X0X0XX	  
+	  // 0X0X0XX
 	  if((ib<jb and (ib+jb)%2) or (ib>jb and (ib+jb+1)%2)) continue; //take exactly half of the off diagonal blocks and all diagonal blocks
 	}
 	count++;
@@ -1342,7 +1341,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &BraKet) {
       // we fetch orbitals within the same iblocks in different orders in order to avoid overloading the bank
       for (int i = 0; i < isize; i++) itasks[ib].push_back(orb_map[ib][(i+mpi::orb_rank)%isize].second);
     }
-    
+
     for (int jb = 0; jb < jblocks; jb++) {
       // we must have square blocks, i.e. jsize=isize. Use the same as i
       int isize = orb_map[jb].size();
@@ -1389,7 +1388,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &BraKet) {
     mpi::orb_bank.init_tasks(iblocks, jblocks, mpi::orb_rank, mpi::comm_orb);// note that the bank does not know about the symmetri. Symmetri must be taken care of in the loop
 
     int previous_ib = -1;
-    int previous_jb = -1;    
+    int previous_jb = -1;
     int count = 0;
     OrbitalVector iorb_vec;
     OrbitalVector jorb_vec;
@@ -1400,7 +1399,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &BraKet) {
 	int ib = (task_2D[0]+jb)%iblocks; // NB: the blocks are shifted diagonally, so that not all processes start with the first iblock
 
 	if(jb<0) break; // no more tasks in queue
-	
+
 	// block symmetry: we only take every second block. (Almost a checker board but one white diagonal is missing!)
 	// X0X0X0X
 	// XX0X0X0
@@ -1409,7 +1408,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &BraKet) {
 	// 0X0XX0X
 	// X0X0XX0
 	// 0X0X0XX
-	
+
 	if((ib<jb and (ib+jb)%2) or (ib>jb and (ib+jb+1)%2)) continue; //take exactly half of the off diagonal blocks and all diagonal blocks
 	count++;
 	if(previous_jb != jb){
@@ -1429,7 +1428,7 @@ ComplexMatrix orbital::calc_overlap_matrix_task(OrbitalVector &BraKet) {
 	}else{
 	  if(mpi::orb_rank==0)std::cout<<ib<<" "<<jb<<" reusing j orbitals " <<std::endl;
 	}
-	
+
 	for (int i = 0; i < itasks[ib].size(); i++) {
 	    int iorb = itasks[ib][i];
 	    Orbital ket_i;

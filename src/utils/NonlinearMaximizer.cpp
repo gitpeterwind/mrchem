@@ -306,7 +306,7 @@ int NonlinearMaximizer::maximize() {
         }
         if (print == 2 && !wrongstep) { cout << setw(10) << dcount; }
         if (print == 2) cout << endl;
-        if(mpi::orb_rank==0)std::cout<<"iteration "<<iter<<" Newton "<<newton_step_exact<<" "<<lastICG<<" Time sofar " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time hessian " <<(int)((float)t_hess.elapsed() * 1000) << " Time dostep " <<(int)((float)t_step.elapsed() * 1000) << "gradient norm " << gradient_norm<< "trust radius set  to " << h << " test: " << relative_change << " mu: " << mu << " maxeival: " << maxEiVal <<std::endl;
+        if(mpi::orb_rank==0)std::cout<<"iteration "<<iter<<" Newton "<<newton_step_exact<<" "<<lastICG<<" Time sofar " << (int)((float)t_tot.elapsed() * 1000) << " ms "<<" Time hessian " <<(int)((float)t_hess.elapsed() * 1000) << " Time dostep " <<(int)((float)t_step.elapsed() * 1000) << " gradient norm " << gradient_norm<< "trust radius set  to " << h << " test: " << relative_change << " mu: " << mu << " maxeival: " << maxEiVal <<std::endl;
     } // iterations
 
     if (print > 15 and mpi::orb_rank == 0) {
