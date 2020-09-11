@@ -113,6 +113,7 @@ void ExchangePotentialD1::setupInternal(double prec) {
     setApplyPrec(prec);
     if (this->exchange.size() != 0) MSG_ERROR("Exchange not properly cleared");
 
+    int id_shift = 100000; // temporary shift for not colliding with existing ids
     OrbitalVector &Ex = this->exchange;
     OrbitalVector &Phi = *this->orbitals;
 
@@ -166,7 +167,7 @@ void ExchangePotentialD1::setupInternal(double prec) {
                     // must store contribution to exchange_i in bank
                     timerS.resume();
                     totsize += ex_jji.getSizeNodes(NUMBER::Total);
-                    if (ex_jji.norm() > prec) mpi::orb_bank.put_orb(i + (j + 1) * N, ex_jji);
+                    if (ex_jji.norm() > prec) mpi::orb_bank.put_orb(i + (j + 1) * N + id_shift, ex_jji);
                     timerS.stop();
                 } else {
                     // must add contribution to exchange_i
@@ -194,7 +195,7 @@ void ExchangePotentialD1::setupInternal(double prec) {
                         // Fetch other half of matrix (in band where i-j > size/2 %size)
                         if ((ii > jj + (N - 1) / 2 and ii > jj) or (ii > jj - (N + 1) / 2 and ii < jj)) {
                             double j_fac = getSpinFactor(Phi[ii], Phi[jj]);
-                            int found = mpi::orb_bank.get_orb_del(jj + (ii + 1) * N, ex_rcv);
+                            int found = mpi::orb_bank.get_orb_del(jj + (ii + 1) * N + id_shift, ex_rcv);
                             foundcount += found;
                             if (found) Ex[jj].add(j_fac, ex_rcv);
                         }
@@ -222,7 +223,7 @@ void ExchangePotentialD1::setupInternal(double prec) {
             // Fetch other half of matrix (in band where i-j > size/2 %size)
             if ((i > j + (N - 1) / 2 and i > j) or (i > j - (N + 1) / 2 and i < j)) {
                 double j_fac = getSpinFactor(Phi[i], Phi[j]);
-                int found = mpi::orb_bank.get_orb_del(j + (i + 1) * N, ex_rcv);
+                int found = mpi::orb_bank.get_orb_del(j + (i + 1) * N + id_shift, ex_rcv);
                 foundcount += found;
                 if (found) Ex[j].add(j_fac, ex_rcv);
             }
