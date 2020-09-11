@@ -706,6 +706,8 @@ json driver::rsp::run(const json &json_rsp, Molecule &mol) {
         json_out["components"].push_back(comp_out);
     }
     F_0.clear();
+    mpi::barrier(mpi::comm_orb);
+    if (mpi::bank_size > 0) mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
     mol.getOrbitalsX_p().reset(); // Release shared_ptr
     mol.getOrbitalsY_p().reset(); // Release shared_ptr
 

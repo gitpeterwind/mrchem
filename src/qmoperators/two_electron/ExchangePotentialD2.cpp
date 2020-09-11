@@ -39,21 +39,21 @@ ExchangePotentialD2::ExchangePotentialD2(PoissonOperator_p P,
 void ExchangePotentialD2::setupBank() {
     if (mpi::bank_size < 1) return;
 
+    int id_shift = 10000;
+
     Timer timer;
     mpi::barrier(mpi::comm_orb);
     OrbitalVector &Phi = *this->orbitals;
     for (int i = 0; i < Phi.size(); i++) {
-        if (mpi::my_orb(Phi[i])) mpi::orb_bank.put_orb(i, Phi[i]);
+        if (mpi::my_orb(Phi[i])) mpi::orb_bank.put_orb(i + id_shift, Phi[i]);
     }
     OrbitalVector &X = *this->orbitals_x;
     for (int i = 0; i < X.size(); i++) {
-        if (mpi::my_orb(X[i])) mpi::orb_bank.put_orb(i + Phi.size(), X[i]);
+        if (mpi::my_orb(X[i])) mpi::orb_bank.put_orb(i + 2 * id_shift, X[i]);
     }
-    if (not this->useOnlyX) {
-        OrbitalVector &Y = *this->orbitals_y;
-        for (int i = 0; i < Y.size(); i++) {
-            if (mpi::my_orb(Y[i])) mpi::orb_bank.put_orb(i + Phi.size() + X.size(), Y[i]);
-        }
+    OrbitalVector &Y = *this->orbitals_y;
+    for (int i = 0; i < Y.size(); i++) {
+        if (mpi::my_orb(Y[i])) mpi::orb_bank.put_orb(i + 3 * id_shift, Y[i]);
     }
     mpi::barrier(mpi::comm_orb);
     mrcpp::print::time(4, "Setting up exchange bank", timer);
@@ -71,6 +71,8 @@ Orbital ExchangePotentialD2::apply(Orbital phi_p) {
         MSG_ERROR("Uninitialized operator");
         return phi_p.paramCopy();
     }
+
+    int id_shift = 10000;
 
     Timer timer;
     OrbitalVector &Phi = *this->orbitals;
@@ -90,9 +92,9 @@ Orbital ExchangePotentialD2::apply(Orbital phi_p) {
         Orbital &x_i = X[i];
         Orbital &y_i = Y[i];
 
-        if (not mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i, phi_i, 1);
-        if (not mpi::my_orb(x_i)) mpi::orb_bank.get_orb(i + Phi.size(), x_i, 1);
-        if (not mpi::my_orb(y_i) and not this->useOnlyX) mpi::orb_bank.get_orb(i + Phi.size() + X.size(), y_i, 1);
+        if (not mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i + id_shift, phi_i, 1);
+        if (not mpi::my_orb(x_i)) mpi::orb_bank.get_orb(i + 2 * id_shift, x_i, 1);
+        if (not mpi::my_orb(y_i)) mpi::orb_bank.get_orb(i + 3 * id_shift, y_i, 1);
 
         double spin_fac = getSpinFactor(phi_i, phi_p);
         if (std::abs(spin_fac) >= mrcpp::MachineZero) {
@@ -107,7 +109,7 @@ Orbital ExchangePotentialD2::apply(Orbital phi_p) {
         }
         if (not mpi::my_orb(phi_i)) phi_i.free(NUMBER::Total);
         if (not mpi::my_orb(x_i)) x_i.free(NUMBER::Total);
-        if (not mpi::my_orb(y_i) and not this->useOnlyX) y_i.free(NUMBER::Total);
+        if (not mpi::my_orb(y_i)) y_i.free(NUMBER::Total);
     }
 
     // compute out_p = sum_i c_i*(ex_xip + ex_iyp)
@@ -131,6 +133,8 @@ Orbital ExchangePotentialD2::dagger(Orbital phi_p) {
         return phi_p.paramCopy();
     }
 
+    int id_shift = 10000;
+
     Timer timer;
     OrbitalVector &Phi = *this->orbitals;
     OrbitalVector &X = *this->orbitals_x;
@@ -149,9 +153,9 @@ Orbital ExchangePotentialD2::dagger(Orbital phi_p) {
         Orbital &x_i = X[i];
         Orbital &y_i = Y[i];
 
-        if (not mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i, phi_i, 1);
-        if (not mpi::my_orb(x_i)) mpi::orb_bank.get_orb(i + Phi.size(), x_i, 1);
-        if (not mpi::my_orb(y_i) and not this->useOnlyX) mpi::orb_bank.get_orb(i + Phi.size() + X.size(), y_i, 1);
+        if (not mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i + id_shift, phi_i, 1);
+        if (not mpi::my_orb(x_i)) mpi::orb_bank.get_orb(i + 2 * id_shift, x_i, 1);
+        if (not mpi::my_orb(y_i)) mpi::orb_bank.get_orb(i + 3 * id_shift, y_i, 1);
 
         double spin_fac = getSpinFactor(phi_i, phi_p);
         if (std::abs(spin_fac) >= mrcpp::MachineZero) {
@@ -166,7 +170,7 @@ Orbital ExchangePotentialD2::dagger(Orbital phi_p) {
         }
         if (not mpi::my_orb(phi_i)) phi_i.free(NUMBER::Total);
         if (not mpi::my_orb(x_i)) x_i.free(NUMBER::Total);
-        if (not mpi::my_orb(y_i) and not this->useOnlyX) y_i.free(NUMBER::Total);
+        if (not mpi::my_orb(y_i)) y_i.free(NUMBER::Total);
     }
 
     // compute ex_p = sum_i c_i*(ex_ixp + ex_yip)
