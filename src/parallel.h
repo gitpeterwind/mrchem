@@ -134,6 +134,7 @@ public:
     int put_data(int id, int size, double *data);
     int get_data(int id, int size, double *data);
     int get_maxtotalsize();
+    std::vector<int> get_totalsize();
 
 private:
     int const CLOSE_BANK = 1;
@@ -148,6 +149,7 @@ private:
     int const GET_DATA = 10;
     int const SAVE_DATA = 11;
     int const GETMAXTOTDATA = 12;
+    int const GETTOTDATA = 13;
     std::map<int, int> id2ix;
     std::vector<bank::deposit> deposits;
     std::map<int, int> id2qu;

@@ -82,7 +82,7 @@ Bank orb_bank;
 
 } // namespace mpi
 
-int const id_shift = 100000000; // to ensure that nodes, orbitals and functions do not collide
+int id_shift; // to ensure that nodes, orbitals and functions do not collide
 
 void mpi::initialize() {
     Eigen::setNbThreads(1);
@@ -148,10 +148,17 @@ void mpi::initialize() {
 
     MPI_Comm_rank(mpi::comm_orb, &mpi::orb_rank);
     MPI_Comm_size(mpi::comm_orb, &mpi::orb_size);
+
+    //determine the maximum value alowed for mpi tags
+    void *val;
+    int flag;
+    MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &val, &flag); // max value allowed by MPI for tags
+    id_shift = *(int*)val / 2; // half is reserved for non orbital.
+
     if (mpi::is_bank) {
         // bank is open until end of program
         mpi::orb_bank.open();
-        MPI_Finalize();
+        mpi::finalize();
         exit(EXIT_SUCCESS);
     }
 #else
@@ -161,7 +168,11 @@ void mpi::initialize() {
 
 void mpi::finalize() {
 #ifdef MRCHEM_HAS_MPI
-    if (mpi::bank_size > 0 and mpi::grand_master()) mpi::orb_bank.close();
+    if (mpi::bank_size > 0 and mpi::grand_master()){
+        println(2, " max data in bank " << mpi::orb_bank.get_maxtotalsize() << " MB ");
+        mpi::orb_bank.close();
+    }
+    MPI_Barrier(MPI_COMM_WORLD); // to ensure everybody got here
     MPI_Finalize();
 #endif
 }
@@ -177,7 +188,7 @@ void mpi::barrier(MPI_Comm comm) {
  *********************************/
 
 bool mpi::grand_master() {
-    return (mpi::orb_rank == 0) ? true : false;
+    return (mpi::world_rank == 0 and is_bankclient) ? true : false;
 }
 
 bool mpi::share_master() {
@@ -447,12 +458,16 @@ void Bank::open() {
         if (message == CLEAR_BANK) {
             this->clear_bank();
             // send message that it is ready (value of message is not used)
-            MPI_Send(&message, 1, MPI_INT, status.MPI_SOURCE, 77, mpi::comm_bank);
+            MPI_Ssend(&message, 1, MPI_INT, status.MPI_SOURCE, 77, mpi::comm_bank);
         }
         if (message == GETMAXTOTDATA) {
             int maxsize_int = maxsize / 1024; // convert into MB
             MPI_Send(&maxsize_int, 1, MPI_INT, status.MPI_SOURCE, 1171, mpi::comm_bank);
         }
+        if (message == GETTOTDATA) {
+            int maxsize_int = currentsize/1024; // convert into MB
+            MPI_Send(&maxsize_int, 1, MPI_INTEGER, status.MPI_SOURCE, 1172, mpi::comm_bank);
+	}
         if (message == GET_ORBITAL or message == GET_ORBITAL_AND_WAIT or message == GET_ORBITAL_AND_DELETE or
             message == GET_FUNCTION or message == GET_DATA) {
             // withdrawal
@@ -591,7 +606,7 @@ void Bank::open() {
 int Bank::put_orb(int id, Orbital &orb) {
 #ifdef MRCHEM_HAS_MPI
     // for now we distribute according to id
-    if (id > id_shift) MSG_WARN("Bank id should be less than id_shift (100000000)");
+    if (id > id_shift) MSG_ABORT("Bank id must be less than max allowed tag / 2 ");
     MPI_Send(&SAVE_ORBITAL, 1, MPI_INT, mpi::bankmaster[id % mpi::bank_size], id, mpi::comm_bank);
     mpi::send_orbital(orb, mpi::bankmaster[id % mpi::bank_size], id, mpi::comm_bank);
 #endif
@@ -716,6 +731,20 @@ int Bank::get_maxtotalsize() {
     }
 #endif
     return maxtot;
+}
+
+std::vector<int>  Bank::get_totalsize() {
+    std::vector<int> tot;
+#ifdef HAVE_MPI
+    MPI_Status status;
+    int datasize;
+    for (int i = 0; i < mpi::bank_size; i++) {
+        MPI_Send(&GETTOTDATA, 1, MPI_INTEGER, mpi::bankmaster[i], 0, mpi::comm_bank);
+        MPI_Recv(&datasize, 1, MPI_INTEGER, mpi::bankmaster[i], 1172, mpi::comm_bank, &status);
+        tot.push_back(datasize);
+    }
+#endif
+    return tot;
 }
 
 // remove all deposits
