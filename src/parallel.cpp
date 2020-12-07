@@ -76,6 +76,7 @@ int task_bank;
 int id_shift; // to ensure that nodes, orbitals and functions do not collide
 
 void mpi::initialize() {
+    Eigen::setNbThreads(1);
     omp_set_dynamic(0);
 
 #ifdef HAVE_MPI
@@ -94,24 +95,45 @@ void mpi::initialize() {
     // set bank_size automatically if not defined by user
     if (mpi::world_size > 1 and mpi::bank_size < 0) mpi::bank_size = mpi::world_size / 3 + 1;
     mpi::bank_size = std::max(0, mpi::bank_size);
+    //std::cout<<" world rank "<<mpi::world_rank<<" size "<<mpi::world_size<<" bank_size "<<bank_size<<std::endl;
 
     if (mpi::world_size - mpi::bank_size < 1) MSG_ABORT("No MPI ranks left for working!");
     mpi::bankmaster.resize(mpi::bank_size);
-    for (int i = 0; i < mpi::bank_size; i++) {
-        mpi::bankmaster[i] = mpi::world_size - i - 1; // rank of the bankmasters
-    }
-    if (mpi::world_rank < mpi::world_size - mpi::bank_size) {
-        // everything which is left
+    if(mpi::world_size<=8){
+        for (int i = 0; i < mpi::bank_size; i++) {
+            mpi::bankmaster[i] = mpi::world_size - i - 1; // rank of the bankmasters
+        }
+        if (mpi::world_rank < mpi::world_size - mpi::bank_size) {
+            // everything which is left
+            mpi::is_bank = 0;
+            mpi::is_bankclient = 1;
+        } else {
+            // special group of bankmasters
+            mpi::is_bank = 1;
+            mpi::is_bankclient = 0;
+            if (mpi::world_rank == mpi::world_size - mpi::bank_size) mpi::is_bankmaster = 1;
+        }
+    }else{
+        // default if not bank
         mpi::is_bank = 0;
         mpi::is_bankclient = 1;
-    } else {
-        // special group of bankmasters
-        mpi::is_bank = 1;
-        mpi::is_bankclient = 0;
-        if (mpi::world_rank == mpi::world_size - mpi::bank_size) mpi::is_bankmaster = 1;
+        for (int i = 0; i < mpi::bank_size; i++) {
+            mpi::bankmaster[i] = mpi::world_size-((mpi::world_size/8)*(i/(mpi::world_size/8)) + i)-1; // rank of the bankmasters
+            if(mpi::bankmaster[i]<0 or mpi::bankmaster[i]>=mpi::world_size){
+                std::cout<<i<<" "<<mpi::bankmaster[i]<<" "<<mpi::bank_size<<" "<<mpi::world_size<<std::endl;
+                MSG_ABORT("bank_size > 0.5*world_size not implemented");
+            }
+            if(mpi::bankmaster[i]==mpi::world_rank){
+                mpi::is_bank = 1;
+                mpi::is_bankclient = 0;
+                if(i==mpi::bank_size-1)mpi::is_bankmaster = 1;//last i
+            }
+        }
     }
-    MPI_Comm_split(MPI_COMM_WORLD, mpi::is_bankclient, mpi::world_rank, &comm_remainder);
+    //    std::cout<<"before split world rank "<<mpi::world_rank<<" size "<<mpi::world_size<<" mpi::is_bank "<<mpi::is_bank<<std::endl;
+   MPI_Comm_split(MPI_COMM_WORLD, mpi::is_bankclient, mpi::world_rank, &comm_remainder);
 
+   //std::cout<<"after split world rank "<<mpi::world_rank<<" size "<<mpi::world_size<<" mpi::is_bank "<<mpi::is_bank<<std::endl;
     // split world into groups that can share memory
     MPI_Comm_split_type(comm_remainder, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &mpi::comm_share);
 
@@ -146,6 +168,7 @@ void mpi::initialize() {
         mpi::orb_bank_size = mpi::bank_size-1;
         mpi::task_bank=mpi::bankmaster[mpi::orb_bank_size];
     }
+    //    std::cout<<" world rank "<<mpi::world_rank<<" orb rank "<<mpi::orb_rank<<" "<<mpi::is_bankclient<<" "<<mpi::is_bank<<std::endl;
 
     void *val;
     int flag;
@@ -351,7 +374,6 @@ void mpi::reduce_function(double prec, QMFunction &func, MPI_Comm comm) {
     MPI_Comm_rank(comm, &comm_rank);
     MPI_Comm_size(comm, &comm_size);
     if (comm_size == 1) return;
-
     int fac = 1; // powers of 2
     while (fac < comm_size) {
         if ((comm_rank / fac) % 2 == 0) {
@@ -506,7 +528,7 @@ void Bank::open() {
         Timer t_timer;
         MPI_Recv(&message, 1, MPI_INTEGER, MPI_ANY_SOURCE, MPI_ANY_TAG, mpi::comm_bank, &status);
         //        if (printinfo or (int)((float)t_timer.elapsed()* 1000)>150)
-        //  std::cout << mpi::world_rank << " got message " << message <<" from " << status.MPI_SOURCE <<" "<<(int)((float)t_timer.elapsed()* 1000)<<std::endl;
+        //        std::cout << mpi::world_rank << " got message " << message <<" from " << status.MPI_SOURCE <<" tag "<<status.MPI_TAG <<" id2ix "<<id2ix[status.MPI_TAG]<<" "<<id2ix.size()<<" "<<(int)((float)t_timer.elapsed()* 1000)<<std::endl;
         if (message == CLOSE_BANK) {
             if (mpi::is_bankmaster and printinfo) std::cout << "Bank is closing" << std::endl;
             this->clear_bank();
@@ -1074,6 +1096,7 @@ int Bank::put_orb_n(int id, Orbital &orb, int n) {
     MPI_Status status;
     //the task manager assigns n bank to whom the orbital is sent
     int dest = mpi::task_bank;
+    n = std::min(n, mpi::orb_bank_size);
     MPI_Send(&PUT_ORB_N, 1, MPI_INTEGER, dest, id, mpi::comm_bank);
     MPI_Send(&n, 1, MPI_INTEGER, dest, id, mpi::comm_bank);
     std::vector<int> banks(n); // the rank of the banks to whom to send the orbital

@@ -331,6 +331,18 @@ ComplexDouble RankZeroTensorOperator::trace(OrbitalVector &Phi) {
     OrbitalVector OPhi = O(Phi);
     ComplexVector eta = orbital::get_occupations(Phi).cast<ComplexDouble>();
     ComplexVector phi_vec = orbital::dot(Phi, OPhi);
+    /*    ComplexVector phi_vec(Phi.size());
+    int n_size = 0;
+    int n_nodes = 0;
+    int i = 0;
+    for (auto orb : Phi) {
+        if (not mpi::my_orb(orb)) continue;
+        Orbital Oorb = O(orb);
+        n_size += Oorb.getSizeNodes(NUMBER::Total);
+        n_nodes += Oorb.getNNodes(NUMBER::Total);
+        phi_vec[i]=orbital::dot(orb, Oorb);
+        i++;
+        }*/
 
     std::stringstream o_name;
     o_name << "Trace " << O.name() << "(rho)";

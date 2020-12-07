@@ -60,8 +60,8 @@ void CoulombPotential::setup(double prec) {
         // Keep each local contribution a bit
         // more precise than strictly necessary
         setupLocalDensity(0.1 * prec);
-        QMFunction V = setupLocalPotential(0.1 * prec);
-        allreducePotential(0.1 * prec, V);
+        QMFunction V = setupLocalPotential(0.01 * prec);
+        allreducePotential(0.01 * prec, V);
     }
 }
 
@@ -137,7 +137,7 @@ void CoulombPotential::allreducePotential(double prec, QMFunction &V_loc) {
     QMFunction &V_tot = *this;
     OrbitalVector &Phi = *this->orbitals;
 
-    double abs_prec = prec / orbital::get_electron_number(Phi);
+    double abs_prec = prec / sqrt(orbital::get_electron_number(Phi));
 
     // Add up local contributions into the grand master
 

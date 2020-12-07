@@ -79,10 +79,11 @@ NuclearPotential::NuclearPotential(const Nuclei &nucs, double proj_prec, double 
 
     // Scale precision by system size
     int Z_tot = chemistry::get_total_charge(nucs);
-    double abs_prec = proj_prec / Z_tot;
+    //double abs_prec = proj_prec / Z_tot;
+    double abs_prec = proj_prec / sqrt(Z_tot);
 
     QMFunction V_loc(false);
-
+    if (mpi::grand_master()) std::cout<<" project "<<std::endl;
     Timer t_loc;
     qmfunction::project(V_loc, loc_func, NUMBER::Real, abs_prec);
     t_loc.stop();
@@ -118,7 +119,7 @@ void NuclearPotential::allreducePotential(double prec, QMFunction &V_loc) {
             mrcpp::copy_grid(V_tot.real(), V_loc.real());
             mrcpp::copy_func(V_tot.real(), V_loc.real());
         }
-        // MPI share masters distributes to their sharing ranks
+     // MPI share masters distributes to their sharing ranks
         mpi::share_function(V_tot, 0, tag, mpi::comm_share);
     } else {
         // MPI grand master distributes to all ranks
