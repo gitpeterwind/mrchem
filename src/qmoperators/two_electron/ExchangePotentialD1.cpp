@@ -88,7 +88,7 @@ Orbital ExchangePotentialD1::apply(Orbital phi_p) {
         return calcExchange(phi_p);
     } else {
         println(4, "Precomputed exchange");
-        qmfunction::deep_copy(out_p, this->exchange[i]);
+        qmfunction::deep_copy(out_p, this->exchange[i]); // TODO: check if reference kan be used
         return out_p;
     }
 }
@@ -109,7 +109,7 @@ Orbital ExchangePotentialD1::dagger(Orbital phi_p) {
  * The exchange potential is (pre)computed among the orbitals that define the operator
  */
 void ExchangePotentialD1::setupInternal(double prec) {
-    Timer timerT, timerS(false);
+    Timer timerT, timerS(false), t_calc(false);
     setApplyPrec(prec);
     if (this->exchange.size() != 0) MSG_ERROR("Exchange not properly cleared");
 
@@ -126,7 +126,9 @@ void ExchangePotentialD1::setupInternal(double prec) {
     Timer timerD;
     for (auto &phi_i : Phi) {
         Orbital ex_iii = phi_i.paramCopy();
+        t_calc.resume();
         if (mpi::my_orb(phi_i)) calcExchange_kij(precf, phi_i, phi_i, phi_i, ex_iii);
+        t_calc.stop();
         Ex.push_back(ex_iii);
     }
     mrcpp::print::time(4, "Exchange time diagonal", timerD);
@@ -148,9 +150,11 @@ void ExchangePotentialD1::setupInternal(double prec) {
             if (i > j + (N - 1) / 2 and i > j and use_sym) continue;
             if (i > j - (N + 1) / 2 and i < j and use_sym) continue;
             Orbital phi_i;
-            if (not mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i, phi_i, 1);
+            mpi::orb_bank.get_orb(i, phi_i, 1); // fetch also own orbitals (simpler for clean up, and they are few)
+
             Orbital ex_jji = phi_i.paramCopy();
             Orbital ex_iij = phi_j.paramCopy();
+            t_calc.resume();
             if (use_sym) {
                 // compute K_iij and K_jji in one operation
                 calcExchange_kij(precf, phi_i, phi_i, phi_j, ex_iij, &ex_jji);
@@ -158,6 +162,7 @@ void ExchangePotentialD1::setupInternal(double prec) {
                 // compute only own contributions (K_jji is not computed)
                 calcExchange_kij(precf, phi_i, phi_i, phi_j, ex_iij);
             }
+            t_calc.stop();
             double j_fac = getSpinFactor(phi_i, phi_j);
             Ex[j].add(j_fac, ex_iij);
             ex_iij.release();
@@ -232,7 +237,10 @@ void ExchangePotentialD1::setupInternal(double prec) {
     }
     timerS.stop();
     println(3, " fetched in total " << foundcount << " Exchange contributions from bank");
-    mrcpp::print::time(4, "Time send/rcv exchanges", timerS);
+    mrcpp::print::time(3, "Time send/rcv exchanges", timerS);
+    mrcpp::print::time(3, "Time calculate exchanges", t_calc);
+
+    mpi::orb_bank.clear_all(mpi::orb_rank, mpi::comm_orb);
 
     auto n = orbital::get_n_nodes(Ex);
     auto m = orbital::get_size_nodes(Ex);
