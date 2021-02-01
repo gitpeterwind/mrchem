@@ -55,6 +55,8 @@ OrbitalVector disjoin(OrbitalVector &Phi, int spin);
 void save_orbitals(OrbitalVector &Phi, const std::string &file, int spin = -1);
 OrbitalVector load_orbitals(const std::string &file, int n_orbs = -1);
 
+void save_nodes(OrbitalVector Phi, mrcpp::FunctionTree<3> &refTree, int shift = 0);
+
 void normalize(OrbitalVector &Phi);
 void orthogonalize(double prec, OrbitalVector &Phi);
 void orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi);
