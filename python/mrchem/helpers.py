@@ -65,6 +65,21 @@ def write_scf_fock(user_dict, mol_dict, wf_method, dft_funcs, origin):
         "shared_memory": user_dict["MPI"]["share_nuclear_potential"]
     }
 
+    # Reaction
+    if user_dict["Environment"]["run_environment"]:
+        fock_dict["reaction_operator"] = {
+            "poisson_prec": user_dict["world_prec"],
+            "kain": user_dict["Environment"]["kain"],
+            "algorithm": user_dict["Environment"]["algorithm"],
+            "epsilon_in": user_dict["Environment"]["Permittivity"]["epsilon_in"],
+            "epsilon_out": user_dict["Environment"]["Permittivity"]["epsilon_out"],
+            "formulation": user_dict["Environment"]["Permittivity"]["formulation"],
+            "max_iter": user_dict["Environment"]["max_iter"],
+            "convergence_criterion": user_dict["Environment"]["convergence_criterion"],
+            "accelerate_Vr": user_dict["Environment"]["extrapolate_Vr"],
+            "density_type": user_dict["Environment"]["density_type"]
+    }
+
     # Coulomb
     if wf_method in ['hartree', 'hf', 'dft']:
         fock_dict["coulomb_operator"] = {

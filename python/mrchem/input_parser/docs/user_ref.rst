@@ -698,3 +698,97 @@ User input reference
   
     **Default** ``user['SCF']['localize']``
   
+ :Environment: Includes parameters related to the computation of the reaction field energy of a system in an environment. 
+
+  :red:`Keywords`
+   :max_iter: Max number of iterations allowed in the nested procedure. 
+  
+    **Type** ``int``
+  
+    **Default** ``100``
+  
+   :run_environment: Perform the reaction field calculation of the reaction potential of the interaction between environment and molecule.  
+  
+    **Type** ``bool``
+  
+    **Default** ``False``
+  
+   :algorithm: What algorithm to use for the reaction field ``scrf`` runs a nested algorithm where the generalized Poisson equation is solved iterativelly until self consistency wrt. the convergence threshold. 
+  
+    **Type** ``str``
+  
+    **Default** ``scrf``
+  
+    **Predicates**
+      - ``value.lower() in ['scrf']``
+  
+   :convergence_criterion: Adjust the convergence threshold for the nested procedure. ``dynamic`` Uses the absolute value of the latest orbital update as convergence threshold. When the orbitals are close to convergence (``mo_residual < world_prec*10``) the convergence threshold will be equal to ``world_prec``. ``static`` uses ``world_prec`` as convergence threshold. 
+  
+    **Type** ``str``
+  
+    **Default** ``dynamic``
+  
+    **Predicates**
+      - ``value.lower() in ['dynamic', 'static']``
+  
+   :extrapolate_Vr: Extrapolate on the reaction potential if true, or on the surface charge distribution in the convergence acceleration. 
+  
+    **Type** ``bool``
+  
+    **Default** ``True``
+  
+   :density_type: What part of the total molecular charge density to use in the algorithm. ``total`` uses the total charge density. ``nuclear`` uses only the nuclear part of the total charge density. ``electronic`` uses only the electronic part of the total charge density. 
+  
+    **Type** ``str``
+  
+    **Default** ``total``
+  
+    **Predicates**
+      - ``value.lower() in ['total', 'nuclear', 'electronic']``
+  
+   :kain: Number of previous reaction field iterates kept for convergence acceleration during the nested precedure. 
+  
+    **Type** ``int``
+  
+    **Default** ``user['SCF']['kain']``
+  
+  :red:`Sections`
+   :Cavity: Define the interlocking spheres cavity. 
+  
+      :red:`Keywords`
+       :spheres: Coordinates and radii  of the spheres written as $spheres x_0    y_0    z_0    R_0 ... x_N    y_N    z_N    R_N $end The units used are the same specified with the `world_unit` keyword. 
+      
+        **Type** ``str``
+      
+        **Default** ````
+      
+       :cavity_width: Width of cavity boundary 
+      
+        **Type** ``float``
+      
+        **Default** ``0.2``
+      
+   :Permittivity: Parameters for the permittivity function. 
+  
+      :red:`Keywords`
+       :epsilon_in: Permittivity inside the cavity. 1.0 is the permittivity of free space, anything other than this is undefined behaviour. 
+      
+        **Type** ``float``
+      
+        **Default** ``1.0``
+      
+       :epsilon_out: Permittivity outside the cavity. This is characteristic of the solvent used. 
+      
+        **Type** ``float``
+      
+        **Default** ``2.0``
+      
+       :formulation: Formulation of the Permittivity function. Currently only the exponential is used. 
+      
+        **Type** ``str``
+      
+        **Default** ``exponential``
+      
+        **Predicates**
+          - ``value.lower() in ['exponential']``
+      

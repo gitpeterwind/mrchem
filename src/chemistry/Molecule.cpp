@@ -28,6 +28,7 @@
 #include "Molecule.h"
 #include "Nucleus.h"
 
+#include "environment/Cavity.h"
 #include "qmfunctions/orbital_utils.h"
 
 using mrcpp::Coord;
@@ -257,6 +258,11 @@ nlohmann::json Molecule::json() const {
     for (const auto &geo : geometric_derivative) json_out["geometric_derivative"][geo.first] = geo.second.json();
 
     return json_out;
+}
+
+void Molecule::initCavity(std::vector<mrcpp::Coord<3>> &coords, std::vector<double> &R, double slope) {
+    if (cavity) MSG_ABORT("Cavity already initialized");
+    this->cavity = std::make_shared<Cavity>(coords, R, slope);
 }
 
 } // namespace mrchem

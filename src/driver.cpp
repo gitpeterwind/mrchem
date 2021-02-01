@@ -31,6 +31,8 @@
 
 #include "chemistry/Molecule.h"
 #include "chemistry/Nucleus.h"
+#include "environment/Cavity.h"
+#include "environment/Permittivity.h"
 
 #include "initial_guess/chk.h"
 #include "initial_guess/core.h"
@@ -53,6 +55,7 @@
 #include "qmoperators/two_electron/CoulombOperator.h"
 #include "qmoperators/two_electron/ExchangeOperator.h"
 #include "qmoperators/two_electron/FockOperator.h"
+#include "qmoperators/two_electron/ReactionOperator.h"
 #include "qmoperators/two_electron/XCOperator.h"
 
 #include "qmoperators/one_electron/H_BB_dia.h"
@@ -67,6 +70,8 @@
 #include "qmoperators/one_electron/NuclearGradientOperator.h"
 
 #include "properties/GeometricDerivative.h"
+
+#include "environment/SCRF.h"
 
 #include "scf_solver/GroundStateSolver.h"
 #include "scf_solver/KAIN.h"
@@ -134,7 +139,15 @@ void driver::init_molecule(const json &json_mol, Molecule &mol) {
         auto xyz = coord["xyz"];
         nuclei.push_back(atom, xyz);
     }
+    std::vector<double> radii;
+    std::vector<mrcpp::Coord<3>> spheres;
+    for (const auto &coord : json_mol["cavity_coords"].get<json>()) {
+        radii.push_back(coord["radius"].get<double>());
+        spheres.push_back(coord["center"].get<mrcpp::Coord<3>>());
+    }
+    auto cavity_width = json_mol["cavity_width"].get<double>();
 
+    mol.initCavity(spheres, radii, cavity_width);
     mol.printGeometry();
 }
 
@@ -222,7 +235,6 @@ json driver::scf::run(const json &json_scf, Molecule &mol) {
     ///////////////////////////////////////////////////////////
     ///////////////   Setting Up Initial Guess   //////////////
     ///////////////////////////////////////////////////////////
-
     const auto &json_guess = json_scf["initial_guess"];
     if (scf::guess_orbitals(json_guess, mol)) {
         scf::guess_energy(json_guess, mol, F);
@@ -371,7 +383,6 @@ bool driver::scf::guess_energy(const json &json_guess, Molecule &mol, FockOperat
     auto &F_mat = mol.getFockMatrix();
     F_mat = ComplexMatrix::Zero(Phi.size(), Phi.size());
     if (localize) orbital::localize(prec, Phi, F_mat);
-
     F.setup(prec);
     F_mat = F(Phi, Phi);
     mol.getSCFEnergy() = F.trace(Phi, nucs);
@@ -959,6 +970,42 @@ void driver::build_fock_operator(const json &json_fock, Molecule &mol, FockOpera
         } else {
             MSG_ABORT("Invalid perturbation order");
         }
+    }
+    ///////////////////////////////////////////////////////////
+    //////////////////   Reaction Operator   ///////////////////
+    ///////////////////////////////////////////////////////////
+    if (json_fock.contains("reaction_operator")) {
+
+        // preparing Reaction Operator
+        auto poisson_prec = json_fock["reaction_operator"]["poisson_prec"];
+        auto P_r = std::make_shared<PoissonOperator>(*MRA, poisson_prec);
+        auto D_r = std::make_shared<mrcpp::ABGVOperator<3>>(*MRA, 0.0, 0.0);
+        auto hist_r = json_fock["reaction_operator"]["kain"];
+
+        auto cavity_r = mol.getCavity_p();
+        auto eps_in_r = json_fock["reaction_operator"]["epsilon_in"];
+        auto eps_out_r = json_fock["reaction_operator"]["epsilon_out"];
+        auto max_iter = json_fock["reaction_operator"]["max_iter"];
+        auto convergence_criterion = json_fock["reaction_operator"]["convergence_criterion"];
+        auto algorithm = json_fock["reaction_operator"]["algorithm"]; // This has no use as of now
+        auto accelerate_Vr = json_fock["reaction_operator"]["accelerate_Vr"];
+        auto formulation = json_fock["reaction_operator"]["formulation"];
+        auto density_type = json_fock["reaction_operator"]["density_type"];
+        Permittivity dielectric_func(*cavity_r, eps_in_r, eps_out_r, formulation);
+
+        SCRF helper(dielectric_func,
+                    nuclei,
+                    P_r,
+                    D_r,
+                    poisson_prec,
+                    hist_r,
+                    max_iter,
+                    accelerate_Vr,
+                    convergence_criterion,
+                    algorithm,
+                    density_type);
+        auto Reo = std::make_shared<ReactionOperator>(Phi_p, helper);
+        F.getReactionOperator() = Reo;
     }
     ///////////////////////////////////////////////////////////
     ////////////////////   XC Operator   //////////////////////

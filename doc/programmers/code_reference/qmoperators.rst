@@ -27,3 +27,10 @@ XCPotential
    :protected-members:
    :private-members:
 
+ReactionPotential
+-----------------
+.. doxygenclass:: mrchem::ReactionPotential
+   :project: MRChem
+   :members:
+   :protected-members:
+   :private-members:

@@ -15,6 +15,7 @@ using Timer = mrcpp::Timer;
 using namespace mrchem;
 
 int main(int argc, char **argv) {
+    mpi::initialize();
     const auto json_inp = mrenv::fetch_json(argc, argv);
     mrenv::initialize(json_inp);
 

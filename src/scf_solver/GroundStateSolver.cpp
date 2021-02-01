@@ -33,7 +33,9 @@
 #include "chemistry/Molecule.h"
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
+#include "qmfunctions/qmfunction_utils.h"
 #include "qmoperators/two_electron/FockOperator.h"
+#include "qmoperators/two_electron/ReactionOperator.h"
 
 using mrcpp::Printer;
 using mrcpp::Timer;
@@ -216,11 +218,13 @@ json GroundStateSolver::optimize(Molecule &mol, FockOperator &F) {
     Timer t_tot;
     json json_out;
 
-    KAIN kain(this->history);
     SCFEnergy &E_n = mol.getSCFEnergy();
     const Nuclei &nucs = mol.getNuclei();
     OrbitalVector &Phi_n = mol.getOrbitals();
     ComplexMatrix &F_mat = mol.getFockMatrix();
+
+    auto scaling = std::vector<double>(Phi_n.size(), 1.0);
+    KAIN kain(this->history, 0, false, scaling);
 
     DoubleVector errors = DoubleVector::Ones(Phi_n.size());
     double err_o = errors.maxCoeff();
@@ -250,8 +254,10 @@ json GroundStateSolver::optimize(Molecule &mol, FockOperator &F) {
         Timer t_scf;
         double orb_prec = adjustPrecision(err_o);
         double helm_prec = getHelmholtzPrec();
-        if (nIter < 2) F.setup(orb_prec);
-
+        if (nIter < 2) {
+            if (F.getReactionOperator() != nullptr) F.getReactionOperator()->updateMOResidual(err_t);
+            F.setup(orb_prec);
+        }
         // Init Helmholtz operator
         HelmholtzVector H(helm_prec, F_mat.real().diagonal());
 
@@ -274,7 +280,6 @@ json GroundStateSolver::optimize(Molecule &mol, FockOperator &F) {
         OrbitalVector dPhi_n = orbital::add(1.0, Phi_np1, -1.0, Phi_n);
         Phi_np1.clear();
 
-        // Employ KAIN accelerator
         kain.accelerate(orb_prec, Phi_n, dPhi_n);
 
         // Compute errors
@@ -290,6 +295,7 @@ json GroundStateSolver::optimize(Molecule &mol, FockOperator &F) {
         orbital::orthonormalize(orb_prec, Phi_n, F_mat);
 
         // Compute Fock matrix and energy
+        if (F.getReactionOperator() != nullptr) F.getReactionOperator()->updateMOResidual(err_t);
         F.setup(orb_prec);
         F_mat = F(Phi_n, Phi_n);
         E_n = F.trace(Phi_n, nucs);

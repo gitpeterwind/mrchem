@@ -9,6 +9,7 @@ add_executable(mrchem-tests unit_tests.cpp)
 
 add_subdirectory(qmfunctions)
 add_subdirectory(qmoperators)
+add_subdirectory(solventeffect)
 
 target_link_libraries(mrchem-tests
   PRIVATE
@@ -24,3 +25,4 @@ add_subdirectory(h2o_energy_blyp)
 add_subdirectory(li_scf_pbe0)
 add_subdirectory(li_pol_lda)
 add_subdirectory(hf_grad_lda)
+add_subdirectory(li_solv)
