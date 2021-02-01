@@ -90,6 +90,10 @@ void share_function(QMFunction &func, int src, int tag, MPI_Comm comm);
 void reduce_function(double prec, QMFunction &func, MPI_Comm comm);
 void broadcast_function(QMFunction &func, MPI_Comm comm);
 
+void reduce_Tree_noCoeff(mrcpp::FunctionTree<3> &tree, MPI_Comm comm);
+void allreduce_Tree_noCoeff(mrcpp::FunctionTree<3> &tree, OrbitalVector &Phi, MPI_Comm comm);
+void broadcast_Tree_noCoeff(mrcpp::FunctionTree<3> &tree, MPI_Comm comm);
+
 void allreduce_vector(IntVector &vec, MPI_Comm comm);
 void allreduce_vector(DoubleVector &vec, MPI_Comm comm);
 void allreduce_vector(ComplexVector &vec, MPI_Comm comm);
@@ -106,8 +110,8 @@ struct deposit {
     double *data; // for pure data arrays
     bool hasdata;
     int datasize;
-    int id;     // to identify what is deposited
-    int source; // mpi rank from the source of the data
+    int id = -1; // to identify what is deposited
+    int source;  // mpi rank from the source of the data
 };
 
 struct queue_struct {
@@ -133,6 +137,11 @@ public:
     int set_datasize(int datasize);
     int put_data(int id, int size, double *data);
     int get_data(int id, int size, double *data);
+    int put_nodedata(int id, int nodeid, int size, double *data);
+    int get_nodedata(int id, int nodeid, int size, double *data, std::vector<int> &idVec);
+    int get_nodeblock(int nodeid, double *data, std::vector<int> &idVec);
+    int get_orbblock(int orbid, double *&data, std::vector<int> &nodeidVec, int bankstart);
+    void clear_blockdata(int i = mpi::orb_rank, int nodeidmax = 0, MPI_Comm comm = mpi::comm_orb);
     int get_maxtotalsize();
     std::vector<int> get_totalsize();
 
@@ -148,8 +157,13 @@ private:
     int const SET_DATASIZE = 9;
     int const GET_DATA = 10;
     int const SAVE_DATA = 11;
-    int const GETMAXTOTDATA = 12;
-    int const GETTOTDATA = 13;
+    int const SAVE_NODEDATA = 12;
+    int const GET_NODEDATA = 13;
+    int const GET_NODEBLOCK = 14;
+    int const GET_ORBBLOCK = 15;
+    int const CLEAR_BLOCKS = 16;
+    int const GETMAXTOTDATA = 17;
+    int const GETTOTDATA = 18;
     std::map<int, int> id2ix;
     std::vector<bank::deposit> deposits;
     std::map<int, int> id2qu;
