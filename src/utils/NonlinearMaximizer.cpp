@@ -26,9 +26,12 @@
 #include <Eigen/Eigenvalues>
 
 #include "MRCPP/Printer"
+#include <MRCPP/Timer>
 
 #include "parallel.h"
 #include "utils/NonlinearMaximizer.h"
+
+using mrcpp::Timer;
 
 using namespace std;
 
@@ -41,17 +44,20 @@ namespace mrchem {
  */
 // We consider only the diagonal of the Hessian, until we are close to the minimum
 int NonlinearMaximizer::maximize() {
+    Timer t_tot, t_hess, t_step;
+    t_hess.stop();
+    t_step.stop();
     int i, j, k, l, iter, dcount;
     double mu, h2;
     double old_norm, new_norm, gradient_norm, value_functional, expected_change, relative_change;
-    double value_functional_old, step_norm2, first_order, second_order;
+    double value_functional_old, step_norm2, first_order, second_order, valdiff;
 
     int print =
         0; // 0: print nothing, 1: print only one line, 2: print one line per iteration; >50 print entire matrices
     int maxIter = 150;  // max number of iterations
     int CG_maxiter = 5; // max number of iterations for the Conjugated Gradient solver for Newton step
     bool converged = false;
-    double threshold = 1.0e-12;    // convergence when norm of gradient is smaller than threshold
+    double threshold = 1.0e-12;    // initial value. convergence when norm of gradient is smaller than threshold
     double CG_threshold = 1.0e-12; // convergence when norm of residue is smaller than threshold
     double h = 0.1;                // initial value of trust radius, should be set small enough.
     bool wrongstep = false;
@@ -75,6 +81,7 @@ int NonlinearMaximizer::maximize() {
 
     // Start of iterations
     for (iter = 1; iter < maxIter + 1 && !converged; iter++) {
+        int lastICG = 0;
         if (print > 5 and mpi::orb_rank == 0) cout << " iteration  " << iter << endl;
         dcount = 0;
         for (i = 0; i < N2h; i++) { eiVal(i) = this->get_hessian(i, i); }
@@ -136,13 +143,16 @@ int NonlinearMaximizer::maximize() {
         if (mu < mu_min * 1.1) {
             newton_step = 1;
             N_newton_step++;
+            if (N_newton_step > 5) threshold = 1.0e-11;
             if ((N_newton_step > 2 && (step_norm2 < 1.E-3 || newton_step_exact == 1))) {
                 if (print > 10 and mpi::orb_rank == 0) cout << "Taking Newton step  " << endl;
                 newton_step_exact = 1;
                 mu_Newton *= 0.2; // level shift for positive and zero eigenvalues
                 DoubleVector r(N2h), Ap(N2h), p(N2h), z(N2h), err(N2h), precond(N2h);
                 double pAp, Hij;
+                t_hess.resume();
                 multiply_hessian(step, Ap);
+                t_hess.stop();
                 for (int i = 0; i < N2h; i++) {
                     // we take the shifted diagonal of the Hessian diag(i) as preconditioner
                     precond(i) = diag(i);
@@ -154,11 +164,15 @@ int NonlinearMaximizer::maximize() {
                     double rr = r.transpose() * r;
                     double rz = r.transpose() * z;
                     pAp = 0.0;
+                    t_hess.resume();
                     multiply_hessian(p, Ap);
+                    t_hess.stop();
                     for (int i = 0; i < N2h; i++) { pAp += p(i) * Ap(i); }
                     double a = rz / pAp;
                     for (int i = 0; i < N2h; i++) { step(i) = step(i) + a * p(i); }
+                    t_hess.resume();
                     multiply_hessian(step, Ap);
+                    t_hess.stop();
                     for (int i = 0; i < N2h; i++) {
                         // Note: Should we compute from step to avoid accumulation of errors or rather reuse Ap?
                         r(i) = -this->gradient(i) - Ap(i);
@@ -179,6 +193,7 @@ int NonlinearMaximizer::maximize() {
                         }
                         if (mpi::orb_rank == 0) cout << iCG << " error this iteration " << std::sqrt(ee) << endl;
                     }
+                    lastICG = iCG;
                 }
                 step_norm2 = step.transpose() * step;
                 first_order = this->gradient.transpose() * step;
@@ -212,12 +227,13 @@ int NonlinearMaximizer::maximize() {
         if (print > 10 and mpi::orb_rank == 0)
             cout << first_order << " " << 0.5 * second_order << " " << expected_change << endl;
 
+        t_step.resume();
         this->do_step(step);
+        t_step.stop();
         value_functional = this->functional();
-
+        valdiff = value_functional - value_functional_old;
         if (print > 10 and mpi::orb_rank == 0)
-            cout << " r*r  " << value_functional << " change in r*r  " << value_functional - value_functional_old
-                 << endl;
+            cout << " r*r  " << value_functional << " change in r*r  " << valdiff << endl;
 
         // relative_change is the size of  second order change compared to actual change
         // = 0 if no higher order contributions
@@ -235,7 +251,6 @@ int NonlinearMaximizer::maximize() {
             }
             direction = direction / std::sqrt(new_norm * old_norm);
         }
-        //    if(print==2)cout<<setw(22) <<gradient_norm<< setw(22) <<direction;
         if (print == 2) cout << setprecision(3) << setw(10) << gradient_norm;
         if (print == 2) cout << setprecision(4) << setw(9) << direction;
 
@@ -290,6 +305,12 @@ int NonlinearMaximizer::maximize() {
         }
         if (print == 2 && !wrongstep) { cout << setw(10) << dcount; }
         if (print == 2) cout << endl;
+        //        if (mpi::orb_rank == 0) std::cout<<std::scientific<<"iteration "<<iter<<" Newton
+        //        "<<newton_step_exact<<" "<<lastICG<<" Time sofar " << (int)((float)t_tot.elapsed() * 1000) << " ms
+        //        "<<" Time hessian " <<(int)((float)t_hess.elapsed() * 1000) << " Time dostep "
+        //        <<(int)((float)t_step.elapsed() * 1000) << " gradient " << gradient_norm<< " trust r " << h << "
+        //        relative >2ndorder: " << relative_change << " mu: " << mu << " maxeival: " << maxEiVal <<" step
+        //        "<<std::sqrt(step_norm2)<<" change in r*r  " << valdiff<<std::endl;
 
     } // iterations
 

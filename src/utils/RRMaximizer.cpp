@@ -24,6 +24,7 @@
  */
 
 #include "MRCPP/Printer"
+#include <unsupported/Eigen/MatrixFunctions> // faster exponential of matrices
 
 #include "utils/RRMaximizer.h"
 #include "utils/math_utils.h"
@@ -63,35 +64,9 @@ RRMaximizer::RRMaximizer(double prec, OrbitalVector &Phi) {
     OrbitalVector yPhi_Vec = r_y(Phi);
     OrbitalVector zPhi_Vec = r_z(Phi);
 
-    OrbitalChunk xPhi = mpi::get_my_chunk(xPhi_Vec);
-    OrbitalChunk yPhi = mpi::get_my_chunk(yPhi_Vec);
-    OrbitalChunk zPhi = mpi::get_my_chunk(zPhi_Vec);
-
-    OrbitalIterator iter(Phi, true); // symmetric iterator;
-    while (iter.next(1)) {
-        for (int i = 0; i < iter.get_size(); i++) {
-            int idx_i = iter.idx(i);
-            Orbital &bra_i = iter.orbital(i);
-            for (int j = 0; j < xPhi.size(); j++) {
-                // note that idx_j are the same for x, y and z
-                int idx_j = std::get<0>(xPhi[j]);
-                if (mpi::my_orb(bra_i) and idx_j > idx_i) continue;
-                Orbital &ket_j_x = std::get<1>(xPhi[j]);
-                if (mpi::my_unique_orb(ket_j_x) or mpi::orb_rank == 0) {
-                    R_x(idx_i, idx_j) = orbital::dot(bra_i, ket_j_x);
-                    R_x(idx_j, idx_i) = std::conj(R_x(idx_i, idx_j));
-
-                    Orbital &ket_j_y = std::get<1>(yPhi[j]);
-                    R_y(idx_i, idx_j) = orbital::dot(bra_i, ket_j_y);
-                    R_y(idx_j, idx_i) = std::conj(R_y(idx_i, idx_j));
-
-                    Orbital &ket_j_z = std::get<1>(zPhi[j]);
-                    R_z(idx_i, idx_j) = orbital::dot(bra_i, ket_j_z);
-                    R_z(idx_j, idx_i) = std::conj(R_z(idx_i, idx_j));
-                }
-            }
-        }
-    }
+    R_x = orbital::calc_overlap_matrix(Phi, xPhi_Vec);
+    R_y = orbital::calc_overlap_matrix(Phi, yPhi_Vec);
+    R_z = orbital::calc_overlap_matrix(Phi, zPhi_Vec);
 
     for (int i = 0; i < this->N; i++) {
         for (int j = 0; j <= i; j++) {
@@ -105,15 +80,13 @@ RRMaximizer::RRMaximizer(double prec, OrbitalVector &Phi) {
             this->r_i_orig(j, i + 2 * this->N) = this->r_i_orig(i, j + 2 * this->N);
         }
     }
-
-    mpi::allreduce_matrix(this->r_i_orig, mpi::comm_orb);
-
     r_x.clear();
     r_y.clear();
     r_z.clear();
 
     // rotate R matrices into orthonormal basis
     ComplexMatrix S_m12 = orbital::calc_lowdin_matrix(Phi);
+
     this->total_U = S_m12.real() * this->total_U;
 
     DoubleMatrix R(this->N, this->N);
@@ -223,122 +196,52 @@ double RRMaximizer::make_hessian() {
  *  Does not store the Hessian values.
  */
 // clang-format off
-void RRMaximizer::multiply_hessian(DoubleVector &vec, DoubleVector &Hv) {
-    double djk, djl, dik, dil;
-    int kl;
-    for (int d = 0; d < 3; d++) {
-#pragma omp parallel for schedule(guided) private(kl, djk, djl, dik, dil)
-        for (int l = this->N - 1; l > 0; l--) { //start with largest l, to ease scheduling (l=0 not used)
-            kl = (l*(l-1))/2; //must be redefined for each l, since l may jump in a omp threads.
-            for (int k = 0; k < l; k++) {
-                if (d==0) Hv(kl) = 0.0;
-                int ij = 0;
-                for (int j = 0; j < this->N; j++) {
-                    if (j == k) {
-                        djk = 1.0;
-                        if (j == l) {
-                            //(j == k) and (j == l)
-                            for (int i = 0; i < j; i++) {
-                                djl = 1.0;
-                                dik = (i == k) ? 1.0 : 0.0;
-                                dil = (i == l) ? 1.0 : 0.0;
-
-                                Hv(kl) += vec(ij)*2.0*(
-                                            r_i(i,i+d*N)*r_i(l,i+d*N)
-                                            -r_i(i,i+d*N)*r_i(k,i+d*N)
-                                            -dik*r_i(j,j+d*N)*r_i(l,j+d*N)
-                                            +dil*r_i(j,j+d*N)*r_i(k,j+d*N)
-                                            -2.0*dil*r_i(i,i+d*N)*r_i(k,j+d*N)
-                                            +2.0*dik*r_i(i,i+d*N)*r_i(l,j+d*N)
-                                            +2.0*r_i(j,j+d*N)*r_i(k,i+d*N)
-                                            -2.0*r_i(j,j+d*N)*r_i(l,i+d*N)
-                                            +r_i(l,l+d*N)*r_i(i,l+d*N)
-                                            -dik*r_i(l,l+d*N)*r_i(j,l+d*N)
-                                            -r_i(k,k+d*N)*r_i(i,k+d*N)
-                                            +dil*r_i(k,k+d*N)*r_i(j,k+d*N)
-                                            -4.0*(dil-dik)*r_i(i,j+d*N)*r_i(k,l+d*N));
-                                ij++;
-                            }
-                        } else {
-                            //(j == k) and (j != l)
-                            for (int i = 0; i < j; i++) {
-                                djl = 0.0;
-                                dik = (i == k) ? 1.0 : 0.0;
-                                dil = (i == l) ? 1.0 : 0.0;
-
-                                Hv(kl) += vec(ij)*2.0*(
-                                            r_i(i,i+d*N)*r_i(l,i+d*N)
-                                            -dik*r_i(j,j+d*N)*r_i(l,j+d*N)
-                                            +dil*r_i(j,j+d*N)*r_i(k,j+d*N)
-                                            -2.0*dil*r_i(i,i+d*N)*r_i(k,j+d*N)
-                                            +2.0*dik*r_i(i,i+d*N)*r_i(l,j+d*N)
-                                            -2.0*r_i(j,j+d*N)*r_i(l,i+d*N)
-                                            +r_i(l,l+d*N)*r_i(i,l+d*N)
-                                            -dik*r_i(l,l+d*N)*r_i(j,l+d*N)
-                                            +dil*r_i(k,k+d*N)*r_i(j,k+d*N)
-                                            -4.0*(dil-dik+djk)*r_i(i,j+d*N)*r_i(k,l+d*N));
-                                ij++;
-                            }
-                        }
-                    } else {
-                        //(j != k)
-                        djk = 0.0;
-                        if (j == l) {
-                            //(j != k) and (j == l) {
-                            for (int i = 0; i < j; i++) {
-                                djl = 1.0;
-                                dik = (i == k) ? 1.0 : 0.0;
-                                dil = (i == l) ? 1.0 : 0.0;
-
-                                Hv(kl) += vec(ij)*2.0*(
-                                            -djl*r_i(i,i+d*N)*r_i(k,i+d*N)
-                                            -dik*r_i(j,j+d*N)*r_i(l,j+d*N)
-                                            +dil*r_i(j,j+d*N)*r_i(k,j+d*N)
-                                            -2.0*dil*r_i(i,i+d*N)*r_i(k,j+d*N)
-                                            +2.0*dik*r_i(i,i+d*N)*r_i(l,j+d*N)
-                                            +2.0*djl*r_i(j,j+d*N)*r_i(k,i+d*N)
-                                            -dik*r_i(l,l+d*N)*r_i(j,l+d*N)
-                                            -djl*r_i(k,k+d*N)*r_i(i,k+d*N)
-                                            +dil*r_i(k,k+d*N)*r_i(j,k+d*N)
-                                            -4.0*(dil-dik-djl)*r_i(i,j+d*N)*r_i(k,l+d*N));
-                                ij++;
-                            }
-                        } else {
-                            //(j != k) and (j != l)
-                            djl = 0.0;
-                            for (int i = 0; i < j; i++) {
-                                if (i == k) {
-                                    //(j != k) and (j != l) and (i == k)
-                                    dik = 1.0 ;
-                                    dil = (i == l) ? 1.0 : 0.0;
-
-                                    Hv(kl) += vec(ij)*2.0*(-r_i(j,j+d*N)*r_i(l,j+d*N)
-                                                           +dil*r_i(j,j+d*N)*r_i(k,j+d*N)
-                                                           -2.0*dil*r_i(i,i+d*N)*r_i(k,j+d*N)
-                                                           +2.0*r_i(i,i+d*N)*r_i(l,j+d*N)
-                                                           -r_i(l,l+d*N)*r_i(j,l+d*N)
-                                                           +dil*r_i(k,k+d*N)*r_i(j,k+d*N)
-                                                           -4.0*(dil-dik)*r_i(i,j+d*N)*r_i(k,l+d*N));
-
-                                } else {
-                                    //(j != k) and (j != l) and (i != k)
-                                    if( i == l ) {
-                                        Hv(kl) += vec(ij)*2.0*(r_i(j,j+d*N)*r_i(k,j+d*N)
-                                                               -2.0*r_i(i,i+d*N)*r_i(k,j+d*N)
-                                                               +r_i(k,k+d*N)*r_i(j,k+d*N)
-                                                               -4.0*r_i(i,j+d*N)*r_i(k,l+d*N));
-                                    }
-                                    //else (j != k) and (j != l) and (i != k)and ( i != l ) -> zero
-                                }
-                                ij++;
-                            }
-                        }
-                    }
-                }
-                kl++;
-            }
-        }
+DoubleMatrix unflattenSkew(const DoubleVector &v, int N) {
+  DoubleMatrix M(N,N);
+  int k = 0;
+  for (int i = 0; i < N; i++) {
+    M(i,i) = 0;
+    for (int j = 0; j < i; j++) {
+      M(i,j) = v(k++);
+      M(j,i) = -M(i,j);
     }
+  }
+  return M;
+}
+
+DoubleVector flattenSkew(const DoubleMatrix &M, int N) {
+  DoubleVector v( N*(N-1)/2 );
+  int k = 0;
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < i; j++) {
+      v(k++) = M(i,j);
+    }
+  }
+  return v;
+}
+
+void RRMaximizer::multiply_hessian(DoubleVector &vec, DoubleVector &Hv) {
+
+  DoubleMatrix S = unflattenSkew(vec, this->N);
+  DoubleMatrix HS(this->N, this->N);
+  HS.setZero();
+
+  // fast and simple method by Johan S. Wind:
+  for (int d = 0; d < 3; d++) {
+    // D = diag(R);
+    // RS = R@S;
+    // return (4*D@S - 2*S@D - 8*diag(RS))@R - 2*D@RS;
+
+    DoubleMatrix R = r_i.block(0,N*d,this->N,this->N);
+    DoubleMatrix RS = R * S;
+
+    auto&D = R.diagonal().asDiagonal();
+    auto&RS_diag = RS.diagonal().asDiagonal();
+
+    HS += (4*D*S - 2*S*D) * R - 2*D*RS - 8*RS_diag*R;
+  }
+  Hv = flattenSkew(HS-HS.transpose(), this->N);
+
 }
 // clang-format on
 
@@ -402,8 +305,8 @@ void RRMaximizer::do_step(const DoubleVector &step) {
     }
 
     // calculate U=exp(-A) by diagonalization and U=Vexp(id)Vt with VdVt=iA
-    // could also sum the term in the expansion if A is small
-    this->total_U *= math_utils::skew_matrix_exp(A);
+    // could also sum the terms in the expansion
+    this->total_U *= A.exp().transpose(); // transpose because we want exp(-A)
 
     // rotate the original r matrix with total U
     DoubleMatrix r(this->N, this->N);
