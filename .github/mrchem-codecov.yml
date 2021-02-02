@@ -6,7 +6,6 @@ dependencies:
   - cxx-compiler
   - eigen
   - lcov
-  - mrcpp
   - ninja
   - nlohmann_json
   - xcfun
