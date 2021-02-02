@@ -112,9 +112,10 @@ void mpi::initialize() {
     if (mpi::world_size < 2) {
         mpi::bank_size = 0;
     } else if (mpi::bank_size < 0) {
-        mpi::bank_size = mpi::world_size / 6 + 1;
+        mpi::bank_size = std::max(mpi::world_size / 4, 1);
     }
     if (mpi::world_size - mpi::bank_size < 1) MSG_ABORT("No MPI ranks left for working!");
+    if (mpi::bank_size < 1 and mpi::world_size > 1) MSG_ABORT("Bank size must be at least one when using MPI!");
 
     mpi::bankmaster.resize(mpi::bank_size);
     for (int i = 0; i < mpi::bank_size; i++) {
