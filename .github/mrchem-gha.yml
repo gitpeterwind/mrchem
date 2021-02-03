@@ -5,7 +5,6 @@ dependencies:
   - cmake
   - cxx-compiler
   - eigen
-  - mrcpp
   - ninja
   - nlohmann_json
   - xcfun
