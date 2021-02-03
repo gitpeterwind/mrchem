@@ -868,7 +868,7 @@ void orbital::orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi)
  */
 ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
 
-    mrchem::mpi::barrier(mrchem::mpi::comm_orb); // for the timings
+    // TODO: spin separate in block?
     int N = BraKet.size();
     ComplexMatrix S = ComplexMatrix::Zero(N, N);
     DoubleMatrix Sreal = DoubleMatrix::Zero(2 * N, 2 * N); // same as S, but stored as 4 blocks, rr,ri,ir,ii
@@ -963,7 +963,10 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
                 S_temp.noalias() = coeffBlock.transpose() * coeffBlock;
                 for (int i = 0; i < orbVec.size(); i++) {
                     for (int j = 0; j < orbVec.size(); j++) {
-                        // must ensure that threads are not competing
+                        if (BraKet[orbVec[i] % N].spin() == SPIN::Alpha and BraKet[orbVec[j] % N].spin() == SPIN::Beta)
+                            continue;
+                        if (BraKet[orbVec[i] % N].spin() == SPIN::Beta and BraKet[orbVec[j] % N].spin() == SPIN::Alpha)
+                            continue;
                         double &Srealij = Sreal(orbVec[i], orbVec[j]);
                         double &Stempij = S_temp(i, j);
 #pragma omp atomic
@@ -980,7 +983,13 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
                 coeffBlock.conservativeResize(Eigen::NoChange, orbVec.size());
                 S_temp.noalias() = coeffBlock.transpose() * coeffBlock;
                 for (int i = 0; i < orbVec.size(); i++) {
-                    for (int j = 0; j < orbVec.size(); j++) { Sreal(orbVec[i], orbVec[j]) += S_temp(i, j); }
+                    for (int j = 0; j < orbVec.size(); j++) {
+                        if (BraKet[orbVec[i] % N].spin() == SPIN::Alpha and BraKet[orbVec[j] % N].spin() == SPIN::Beta)
+                            continue;
+                        if (BraKet[orbVec[i] % N].spin() == SPIN::Beta and BraKet[orbVec[j] % N].spin() == SPIN::Alpha)
+                            continue;
+                        Sreal(orbVec[i], orbVec[j]) += S_temp(i, j);
+                    }
                 }
             }
         }
@@ -1014,6 +1023,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
  */
 ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ket) {
 
+    // TODO: spin separate in block?
     int N = Bra.size();
     int M = Ket.size();
     ComplexMatrix S = ComplexMatrix::Zero(N, M);
@@ -1149,12 +1159,15 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
                 S_temp.noalias() = coeffBlockBra.transpose() * coeffBlockKet;
                 for (int i = 0; i < orbVecBra.size(); i++) {
                     for (int j = 0; j < orbVecKet.size(); j++) {
+                        if (Bra[orbVecBra[i] % N].spin() == SPIN::Alpha and Ket[orbVecKet[j] % M].spin() == SPIN::Beta)
+                            continue;
+                        if (Bra[orbVecBra[i] % N].spin() == SPIN::Beta and Ket[orbVecKet[j] % M].spin() == SPIN::Alpha)
+                            continue;
                         // must ensure that threads are not competing
                         double &Srealij = Sreal(orbVecBra[i], orbVecKet[j]);
                         double &Stempij = S_temp(i, j);
 #pragma omp atomic
                         Srealij += Stempij;
-                        // Sreal(orbVecBra[i], orbVecKet[j]) += S_temp(i,j);
                     }
                 }
             }
@@ -1172,7 +1185,13 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
                 coeffBlockKet.conservativeResize(Eigen::NoChange, orbVecKet.size());
                 S_temp.noalias() = coeffBlockBra.transpose() * coeffBlockKet;
                 for (int i = 0; i < orbVecBra.size(); i++) {
-                    for (int j = 0; j < orbVecKet.size(); j++) { Sreal(orbVecBra[i], orbVecKet[j]) += S_temp(i, j); }
+                    for (int j = 0; j < orbVecKet.size(); j++) {
+                        if (Bra[orbVecBra[i] % N].spin() == SPIN::Alpha and Ket[orbVecKet[j] % M].spin() == SPIN::Beta)
+                            continue;
+                        if (Bra[orbVecBra[i] % N].spin() == SPIN::Beta and Ket[orbVecKet[j] % M].spin() == SPIN::Alpha)
+                            continue;
+                        Sreal(orbVecBra[i], orbVecKet[j]) += S_temp(i, j);
+                    }
                 }
             }
         }
