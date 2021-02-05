@@ -569,6 +569,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                 out[j % N].alloc(NUMBER::Imag);
                 out[j % N].imag().makeTreefromCoeff(refTree, coeffpVec[j], ix2coef[j], priv_prec);
             }
+            if (j >= Neff - N) out[j % N].crop(prec);
         }
 
     } else { // MPI case
@@ -605,6 +606,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                 out[j % N].alloc(NUMBER::Imag);
                 out[j % N].imag().makeTreefromCoeff(refTree, coeffpVec, ix2coef, priv_prec);
             }
+            if (j >= Neff - N) out[j % N].crop(prec);
             for (double *p : pointerstodelete) delete[] p;
             pointerstodelete.clear();
         }
