@@ -1094,6 +1094,8 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
                     node2orbVecBra[ix].push_back(j + N);
                 }
             }
+        }
+        for (int j = 0; j < M; j++) {
             if (Ket[j].hasReal()) {
                 Ket[j].real().makeCoeffVector(coeffVecKet[j], indexVec, parindexVec, scalefac, max_ix, refTree);
                 // make a map that gives j from indexVec
