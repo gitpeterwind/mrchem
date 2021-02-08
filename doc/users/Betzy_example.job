@@ -6,5 +6,6 @@
 #SBATCH --time=1:00:0
 
 export UCX_LOG_LEVEL=ERROR
+export OMP_NUM_THREADS=16
 
 mpirun --rank-by node -map-by numa -bind-to numa ~/my_path/to/mrchem/dir/mrchem.x mw6.json
