@@ -232,7 +232,6 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
     // The routine does avoid when possible to move data, but uses pointers and indices manipulation.
     // MPI version does not use OMP yet, Serial version uses OMP
 
-    auto priv_prec = (mpi::numerically_exact) ? -1.0 : prec;
     auto out = orbital::param_copy(Phi);
     int N = Phi.size();
 
@@ -439,7 +438,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
 
             // 4d) store and make rotated node pointers
             // for now we allocate in buffer, in future could be directly allocated in the final trees
-            double thres = priv_prec * priv_prec * scalefac_ref[n] * scalefac_ref[n];
+            double thres = prec * prec * scalefac_ref[n] * scalefac_ref[n];
             // make all norms:
             for (int i = 0; i < orbiVec.size(); i++) {
                 // check if parent must be split
@@ -456,7 +455,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                     if (parindexVec_ref[n] < 0)
                         kstart = sizecoeff - sizecoeffW; // do not include scaling, even for roots
                     for (int k = kstart; k < csize; k++) wnorm += rotatedCoeff(k, i) * rotatedCoeff(k, i);
-                    if (thres < wnorm or priv_prec < 0.0)
+                    if (thres < wnorm)
                         split_serial(orbiVec[i], n) = 1;
                     else
                         split_serial(orbiVec[i], n) = 0;
@@ -487,7 +486,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
         max_ix++; // largest node index + 1. to store rotated orbitals with different id
         for (int n = 0; n < max_n; n++) {
             if (n % mpi::orb_size != mpi::orb_rank) continue; // could use any partitioning
-            double thres = priv_prec * priv_prec * scalefac_ref[n] * scalefac_ref[n];
+            double thres = prec * prec * scalefac_ref[n] * scalefac_ref[n];
 
             // 4a) make list of orbitals that should split the parent node, i.e. include this node
             int parentid = parindexVec_ref[n];
@@ -544,7 +543,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                 double wnorm = 0.0;
                 int kwstart = csize - sizecoeffW; // do not include scaling
                 for (int k = kwstart; k < csize; k++) wnorm += rotatedCoeff.col(i)[k] * rotatedCoeff.col(i)[k];
-                if (thres < wnorm or priv_prec < 0.0) needsplit[orbiVec[i]] = 1.0;
+                if (thres < wnorm) needsplit[orbiVec[i]] = 1.0;
                 mrchem::mpi::orb_bank.put_nodedata(
                     orbiVec[i], indexVec_ref[n] + max_ix, csize, rotatedCoeff.col(i).data());
             }
@@ -564,12 +563,11 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
         for (int j = 0; j < Neff; j++) {
             if (j < N) {
                 out[j].alloc(NUMBER::Real);
-                out[j].real().makeTreefromCoeff(refTree, coeffpVec[j], ix2coef[j], priv_prec);
+                out[j].real().makeTreefromCoeff(refTree, coeffpVec[j], ix2coef[j], prec);
             } else {
                 out[j % N].alloc(NUMBER::Imag);
-                out[j % N].imag().makeTreefromCoeff(refTree, coeffpVec[j], ix2coef[j], priv_prec);
+                out[j % N].imag().makeTreefromCoeff(refTree, coeffpVec[j], ix2coef[j], prec);
             }
-            if (j >= Neff - N) out[j % N].crop(prec);
         }
 
     } else { // MPI case
@@ -600,13 +598,12 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
             if (j < N) {
                 // Real part
                 out[j].alloc(NUMBER::Real);
-                out[j].real().makeTreefromCoeff(refTree, coeffpVec, ix2coef, priv_prec);
+                out[j].real().makeTreefromCoeff(refTree, coeffpVec, ix2coef, prec);
             } else {
                 // Imag part
                 out[j % N].alloc(NUMBER::Imag);
-                out[j % N].imag().makeTreefromCoeff(refTree, coeffpVec, ix2coef, priv_prec);
+                out[j % N].imag().makeTreefromCoeff(refTree, coeffpVec, ix2coef, prec);
             }
-            if (j >= Neff - N) out[j % N].crop(prec);
             for (double *p : pointerstodelete) delete[] p;
             pointerstodelete.clear();
         }
