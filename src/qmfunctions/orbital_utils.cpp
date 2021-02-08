@@ -455,7 +455,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                     if (parindexVec_ref[n] < 0)
                         kstart = sizecoeff - sizecoeffW; // do not include scaling, even for roots
                     for (int k = kstart; k < csize; k++) wnorm += rotatedCoeff(k, i) * rotatedCoeff(k, i);
-                    if (thres < wnorm)
+                    if (thres < wnorm or prec < 0)
                         split_serial(orbiVec[i], n) = 1;
                     else
                         split_serial(orbiVec[i], n) = 0;
@@ -543,7 +543,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                 double wnorm = 0.0;
                 int kwstart = csize - sizecoeffW; // do not include scaling
                 for (int k = kwstart; k < csize; k++) wnorm += rotatedCoeff.col(i)[k] * rotatedCoeff.col(i)[k];
-                if (thres < wnorm) needsplit[orbiVec[i]] = 1.0;
+                if (thres < wnorm or prec < 0) needsplit[orbiVec[i]] = 1.0;
                 mrchem::mpi::orb_bank.put_nodedata(
                     orbiVec[i], indexVec_ref[n] + max_ix, csize, rotatedCoeff.col(i).data());
             }
