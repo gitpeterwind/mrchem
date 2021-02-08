@@ -1,0 +1,8 @@
+#!/bin/bash -l
+#SBATCH -A nn4654k
+#SBATCH --nodes=4
+#SBATCH --tasks-per-node=8
+#SBATCH --cpus-per-task=16
+#SBATCH --time=1:00:0
+
+export UCX_LOG_LEVEL=ERROR
