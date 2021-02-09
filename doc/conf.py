@@ -457,7 +457,7 @@ def setup(app):
             '@PROJECT_BINARY_DIR@' : project_root_dir,
             '@PERL_EXECUTABLE@'    : which('perl')
           }
-#    tup = (os.walk(project_src_dir)) 
+#    tup = (os.walk(project_src_dir))
 #    for root, dirs, files in os.walk(project_src_dir):
 #        if 'mwfilters' in dirs:
 #            dirs.remove('mwfilters')
@@ -486,3 +486,6 @@ def setup(app):
         app.connect("builder-inited", generate_doxygen_xml)
     else:
         run_doxygen(project_doc_dir)
+
+# configure sphinxcontrib.bibtex
+bibtex_bibfiles = ["bibliography.bib"]

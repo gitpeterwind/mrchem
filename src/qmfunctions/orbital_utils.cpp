@@ -29,6 +29,7 @@
 #include <MRCPP/utils/details.h>
 
 #include "parallel.h"
+//#include "utils/Bank.h"
 #include "utils/RRMaximizer.h"
 #include "utils/math_utils.h"
 #include "utils/print_utils.h"
@@ -868,6 +869,8 @@ void orbital::orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi)
 ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
 
     // TODO: spin separate in block?
+    //BankAccount nodes;
+    //std::cout<<"new account "<<nodes.open()<<std::endl;
     int N = BraKet.size();
     ComplexMatrix S = ComplexMatrix::Zero(N, N);
     DoubleMatrix Sreal = DoubleMatrix::Zero(2 * N, 2 * N); // same as S, but stored as 4 blocks, rr,ri,ir,ii

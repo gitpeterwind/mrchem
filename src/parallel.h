@@ -39,6 +39,7 @@ using MPI_Comm = int;
 #endif
 
 #include "mrchem.h"
+#include "utils/Bank.h"
 #include "qmfunctions/qmfunction_fwd.h"
 
 namespace mrchem {
@@ -47,7 +48,14 @@ namespace omp {
 extern int n_threads;
 } // namespace omp
 
+class CentralBank;
+namespace centralbank {
+  extern CentralBank dataBank;
+}
+
 namespace mpi {
+
+
 extern bool numerically_exact;
 extern int shared_memory_size;
 
@@ -61,6 +69,7 @@ extern int sh_group_rank;
 extern int is_bank;
 extern int is_bankclient;
 extern int bank_size;
+extern int max_tag;
 extern std::vector<int> bankmaster;
 
 extern MPI_Comm comm_orb;

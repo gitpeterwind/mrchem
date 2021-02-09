@@ -27,6 +27,7 @@
 #include <MRCPP/Timer>
 
 #include "parallel.h"
+#include "utils/Bank.h"
 #include "qmfunctions/ComplexFunction.h"
 #include "qmfunctions/Density.h"
 #include "qmfunctions/Orbital.h"
@@ -58,6 +59,9 @@ int n_threads = mrchem_get_max_threads();
 
 using namespace Eigen;
 
+namespace centralbank {
+  CentralBank dataBank;
+}
 namespace mpi {
 
 bool numerically_exact = false;
@@ -74,6 +78,7 @@ int is_bank = 0;
 int is_bankclient = 1;
 int is_bankmaster = 0; // only one bankmaster is_bankmaster
 int bank_size = -1;
+int max_tag = 0; // max value allowed by MPI. Set by initialize()
 std::vector<int> bankmaster;
 
 MPI_Comm comm_orb;
@@ -160,7 +165,8 @@ void mpi::initialize() {
     void *val;
     int flag;
     MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &val, &flag); // max value allowed by MPI for tags
-    id_shift = *(int *)val / 2;                                 // half is reserved for non orbital.
+    max_tag = *(int *)val / 2;
+    id_shift = max_tag / 2;       // half is reserved for non orbital.
 
     if (mpi::is_bank) {
         // bank is open until end of program
