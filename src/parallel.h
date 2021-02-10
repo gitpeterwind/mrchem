@@ -39,7 +39,7 @@ using MPI_Comm = int;
 #endif
 
 #include "mrchem.h"
-#include "utils/Bank.h"
+//#include "utils/Bank.h"
 #include "qmfunctions/qmfunction_fwd.h"
 
 namespace mrchem {
@@ -48,13 +48,12 @@ namespace omp {
 extern int n_threads;
 } // namespace omp
 
-class CentralBank;
 namespace centralbank {
-  extern CentralBank dataBank;
+    class CentralBank;
+    extern CentralBank dataBank;
 }
 
 namespace mpi {
-
 
 extern bool numerically_exact;
 extern int shared_memory_size;

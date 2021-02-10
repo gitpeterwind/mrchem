@@ -29,7 +29,6 @@
 #include <MRCPP/utils/details.h>
 
 #include "parallel.h"
-//#include "utils/Bank.h"
 #include "utils/RRMaximizer.h"
 #include "utils/math_utils.h"
 #include "utils/print_utils.h"
@@ -658,6 +657,51 @@ void orbital::save_nodes(OrbitalVector Phi, mrcpp::FunctionTree<3> &refTree, int
     }
 }
 
+/** @brief Save all nodes in bank; identify them using serialIx from refTree
+ * shift is a shift applied in the id
+ */
+    void orbital::save_nodes(OrbitalVector Phi, mrcpp::FunctionTree<3> &refTree, centralbank::BankAccount nodes, int shift) {
+    int sizecoeff = (1 << refTree.getDim()) * refTree.getKp1_d();
+    int sizecoeffW = ((1 << refTree.getDim()) - 1) * refTree.getKp1_d();
+    int max_nNodes = refTree.getNNodes();
+    std::vector<double *> coeffVec;
+    std::vector<double> scalefac;
+    std::vector<int> indexVec;    // SerialIx of the node in refOrb
+    std::vector<int> parindexVec; // SerialIx of the parent node
+    int N = Phi.size();
+    int max_ix;
+    for (int j = 0; j < N; j++) {
+        if (not mpi::my_orb(Phi[j])) continue;
+        // make vector with all coef address and their index in the union grid
+        if (Phi[j].hasReal()) {
+            Phi[j].real().makeCoeffVector(coeffVec, indexVec, parindexVec, scalefac, max_ix, refTree);
+            int max_n = indexVec.size();
+            // send node coefs from Phi[j] to bank
+            // except for the root nodes, only wavelets are sent
+            for (int i = 0; i < max_n; i++) {
+                if (indexVec[i] < 0) continue; // nodes that are not in refOrb
+                int csize = sizecoeffW;
+                if (parindexVec[i] < 0) csize = sizecoeff;
+                nodes.put_nodedata(j, indexVec[i] + shift, csize, &(coeffVec[i][sizecoeff - csize]));
+            }
+        }
+        // Imaginary parts are considered as orbitals with an orbid shifted by N
+        if (Phi[j].hasImag()) {
+            Phi[j].imag().makeCoeffVector(coeffVec, indexVec, parindexVec, scalefac, max_ix, refTree);
+            int max_n = indexVec.size();
+            // send node coefs from Phi[j] to bank
+            for (int i = 0; i < max_n; i++) {
+                if (indexVec[i] < 0) continue; // nodes that are not in refOrb
+                // NB: the identifier (indexVec[i]) must be shifted for not colliding with the nodes from the real part
+                int csize = sizecoeffW;
+                if (parindexVec[i] < 0) csize = sizecoeff;
+                nodes.put_nodedata(
+                    j + N, indexVec[i] + shift, csize, &(coeffVec[i][sizecoeff - csize]));
+            }
+        }
+    }
+}
+
 /** @brief Deep copy
  *
  * New orbitals are constructed as deep copies of the input set.
@@ -869,8 +913,8 @@ void orbital::orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi)
 ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
 
     // TODO: spin separate in block?
-    //BankAccount nodes;
-    //std::cout<<"new account "<<nodes.open()<<std::endl;
+    centralbank::BankAccount nodes;
+    if(mpi::orb_rank==0)std::cout<<mpi::orb_rank<<" new account "<<nodes.open(mpi::orb_rank, mpi::comm_orb)<<std::endl;
     int N = BraKet.size();
     ComplexMatrix S = ComplexMatrix::Zero(N, N);
     DoubleMatrix Sreal = DoubleMatrix::Zero(2 * N, 2 * N); // same as S, but stored as 4 blocks, rr,ri,ir,ii
@@ -932,6 +976,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
         }
     } else { // MPI case
         // 2) send own nodes to bank, identifying them through the serialIx of refTree
+        save_nodes(BraKet, refTree, nodes);
         save_nodes(BraKet, refTree);
         mrchem::mpi::barrier(mrchem::mpi::comm_orb); // wait until everything is stored before fetching!
     }
