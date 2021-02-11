@@ -59,7 +59,7 @@ int n_threads = mrchem_get_max_threads();
 
 using namespace Eigen;
 
-centralbank::CentralBank dataBank;
+CentralBank dataBank;
 
 namespace mpi {
 
@@ -92,8 +92,8 @@ Bank orb_bank;
 
 int id_shift; // to ensure that nodes, orbitals and functions do not collide
 
-int metadata_block[3]; // can add more metadata in future
-int const size_metadata = 3;
+extern int metadata_block[3]; // can add more metadata in future
+extern int const size_metadata = 3;
 
 void mpi::initialize() {
     Eigen::setNbThreads(1);
@@ -179,18 +179,10 @@ void mpi::initialize() {
     if (mpi::is_bank) {
         // bank is open until end of program
         if(mpi::is_centralbank){
-            std::cout<<mpi::world_rank<<" is centralbank"<<std::endl;
-            centralbank::dataBank.open();
+            dataBank.open();
         }else{
-             std::cout<<mpi::world_rank<<" is old bank"<<std::endl;
-           mpi::orb_bank.open();
+            mpi::orb_bank.open();
         }
-        mpi::finalize();
-        exit(EXIT_SUCCESS);
-    }
-    if (mpi::is_bank) {
-        // bank is open until end of program
-        mpi::orb_bank.open();
         mpi::finalize();
         exit(EXIT_SUCCESS);
     }
@@ -201,9 +193,11 @@ void mpi::initialize() {
 
 void mpi::finalize() {
 #ifdef MRCHEM_HAS_MPI
+    std::cout<<world_rank<<" finalize"<<std::endl;
     if (mpi::bank_size > 0 and mpi::grand_master()) {
         println(3, " max data in bank " << mpi::orb_bank.get_maxtotalsize() << " MB ");
         mpi::orb_bank.close();
+        dataBank.close();
     }
     MPI_Barrier(MPI_COMM_WORLD); // to ensure everybody got here
     MPI_Finalize();

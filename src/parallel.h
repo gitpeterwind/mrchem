@@ -48,10 +48,8 @@ namespace omp {
 extern int n_threads;
 } // namespace omp
 
-namespace centralbank {
-    class CentralBank;
-    extern CentralBank dataBank;
-}
+class CentralBank;
+extern CentralBank dataBank;
 
 namespace mpi {
 
