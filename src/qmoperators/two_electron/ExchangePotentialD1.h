@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "utils/Bank.h"
 #include "ExchangePotential.h"
 #include "qmfunctions/qmfunction_fwd.h"
 #include "qmoperators/QMOperator.h"
@@ -29,6 +30,7 @@ public:
     friend class ExchangeOperator;
 
 private:
+    BankAccount PhiBank;
     void setupBank() override;
     int testInternal(Orbital phi_p) const override;
     void setupInternal(double prec) override;
