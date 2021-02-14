@@ -54,6 +54,7 @@ public:
     int clearAccount(int account, int iclient, MPI_Comm comm); // closes and open fresh account
     void closeAccount(int account_id);                         // remove the account
     long long totcurrentsize = 0ll;                            // number of kB used by all accounts
+    int get_maxtotalsize();
 private:
     std::vector<int> accounts;                          // open bank accounts
     std::map<int, std::vector<deposit> *> get_deposits; // gives deposits of an account
@@ -64,7 +65,6 @@ private:
     long long maxsize = 0;                                // max total deposited data size (without containers)
     void clear_bank();
     void clear_account(int account); // remove the content of the account
-    int get_maxtotalsize();
     std::vector<int> get_totalsize();
 };
 

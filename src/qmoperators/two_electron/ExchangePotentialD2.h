@@ -5,6 +5,7 @@
 #include "ExchangePotential.h"
 #include "qmfunctions/qmfunction_fwd.h"
 #include "qmoperators/QMOperator.h"
+#include "utils/Bank.h"
 
 namespace mrchem {
 
@@ -36,6 +37,7 @@ public:
     friend class ExchangeOperator;
 
 private:
+    BankAccount PhiBank;
     bool useOnlyX;                             ///< true if X and Y are the same set of orbitals
     std::shared_ptr<OrbitalVector> orbitals_x; ///< first set of perturbed orbitals defining the exchange operator
     std::shared_ptr<OrbitalVector> orbitals_y; ///< second set of perturbed orbitals defining the exchange operator

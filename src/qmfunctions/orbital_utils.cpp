@@ -480,7 +480,6 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
         std::vector<double> needsplit(Neff, 1.0); // which orbitals need splitting
         BankAccount nodeSplits;
         nodeSplits.set_datasize(Neff);
-        //       if (mpi::orb_rank == 0) mrchem::mpi::orb_bank.set_datasize(Neff);
         mrchem::mpi::barrier(
             mrchem::mpi::comm_orb); // required for now, as the blockdata functionality has no queue yet.
 
@@ -583,7 +582,6 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                 std::vector<int> nodeidVec;
                 double *dataVec; // will be allocated by bank
                 nodesRotated.get_orbblock(j, dataVec, nodeidVec, ibank);
-                // mrchem::mpi::orb_bank.get_orbblock(j, dataVec, nodeidVec, ibank);
                 if (nodeidVec.size() > 0) pointerstodelete.push_back(dataVec);
                 int shift = 0;
                 for (int n = 0; n < nodeidVec.size(); n++) {
@@ -608,7 +606,6 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
             for (double *p : pointerstodelete) delete[] p;
             pointerstodelete.clear();
         }
-        mrchem::mpi::orb_bank.clear_blockdata();
     }
     return out;
 }

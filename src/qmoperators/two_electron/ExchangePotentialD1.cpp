@@ -269,7 +269,7 @@ Orbital ExchangePotentialD1::calcExchange(Orbital phi_p) {
     std::vector<ComplexDouble> coef_vec;
     for (int i = 0; i < Phi.size(); i++) {
         Orbital &phi_i = Phi[i];
-        if (not mpi::my_orb(phi_i)) mpi::orb_bank.get_orb(i, phi_i, 1);
+        if (not mpi::my_orb(phi_i)) PhiBank.get_orb(i, phi_i, 1);
 
         double spin_fac = getSpinFactor(phi_i, phi_p);
         if (std::abs(spin_fac) >= mrcpp::MachineZero) {

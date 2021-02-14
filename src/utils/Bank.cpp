@@ -1,8 +1,8 @@
 #include <MRCPP/Printer>
 #include <MRCPP/Timer>
 
-#include "qmfunctions/Orbital.h"
 #include "Bank.h"
+#include "qmfunctions/Orbital.h"
 
 namespace mrchem {
 
@@ -449,7 +449,7 @@ void CentralBank::open() {
 // Ask to close the Bank
 void CentralBank::close() {
 #ifdef MRCHEM_HAS_MPI
-    for (int i = 0; i < bank_size; i++) { MPI_Send(&CLOSE_BANK, 1, MPI_INT, bankmaster[i + bank_size], 0, comm_bank); }
+    for (int i = 0; i < bank_size; i++) { MPI_Send(&CLOSE_BANK, 1, MPI_INT, bankmaster[i], 0, comm_bank); }
 #endif
 }
 
@@ -554,8 +554,8 @@ int CentralBank::openAccount(int iclient, MPI_Comm comm) {
     if (iclient == 0) {
         for (int i = 0; i < bank_size; i++) {
             int account_id_i;
-            MPI_Send(messages, message_size, MPI_INT, bankmaster[i + bank_size], 0, comm_bank);
-            MPI_Recv(&account_id_i, 1, MPI_INT, bankmaster[i + bank_size], 1, comm_bank, &status);
+            MPI_Send(messages, message_size, MPI_INT, bankmaster[i], 0, comm_bank);
+            MPI_Recv(&account_id_i, 1, MPI_INT, bankmaster[i], 1, comm_bank, &status);
             if (i > 0 and account_id_i != account_id) MSG_ABORT("Account id mismatch!");
             account_id = account_id_i;
         }
@@ -574,9 +574,7 @@ void CentralBank::closeAccount(int account_id) {
     int messages[message_size];
     messages[0] = CLOSE_ACCOUNT;
     messages[1] = account_id;
-    for (int i = 0; i < bank_size; i++) {
-        MPI_Send(messages, message_size, MPI_INT, bankmaster[i + bank_size], 0, comm_bank);
-    }
+    for (int i = 0; i < bank_size; i++) { MPI_Send(messages, message_size, MPI_INT, bankmaster[i], 0, comm_bank); }
 #endif
 }
 
@@ -586,8 +584,8 @@ int CentralBank::get_maxtotalsize() {
     MPI_Status status;
     int datasize;
     for (int i = 0; i < bank_size; i++) {
-        MPI_Send(&GETMAXTOTDATA, 1, MPI_INT, bankmaster[i + bank_size], 0, comm_bank);
-        MPI_Recv(&datasize, 1, MPI_INT, bankmaster[i + bank_size], 1171, comm_bank, &status);
+        MPI_Send(&GETMAXTOTDATA, 1, MPI_INT, bankmaster[i], 0, comm_bank);
+        MPI_Recv(&datasize, 1, MPI_INT, bankmaster[i], 1171, comm_bank, &status);
         maxtot = std::max(maxtot, datasize);
     }
 #endif
@@ -600,8 +598,8 @@ std::vector<int> CentralBank::get_totalsize() {
     MPI_Status status;
     int datasize;
     for (int i = 0; i < bank_size; i++) {
-        MPI_Send(&GETTOTDATA, 1, MPI_INT, bankmaster[i + bank_size], 0, comm_bank);
-        MPI_Recv(&datasize, 1, MPI_INT, bankmaster[i + bank_size], 1172, comm_bank, &status);
+        MPI_Send(&GETTOTDATA, 1, MPI_INT, bankmaster[i], 0, comm_bank);
+        MPI_Recv(&datasize, 1, MPI_INT, bankmaster[i], 1172, comm_bank, &status);
         tot.push_back(datasize);
     }
 #endif
@@ -618,8 +616,8 @@ int BankAccount::put_orb(int id, Orbital &orb) {
     int messages[message_size];
     messages[0] = SAVE_ORBITAL;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
-    send_orbital(orb, bankmaster[id % bank_size + bank_size], id, comm_bank);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
+    send_orbital(orb, bankmaster[id % bank_size], id, comm_bank);
 #endif
     return 1;
 }
@@ -634,19 +632,19 @@ int BankAccount::get_orb(int id, Orbital &orb, int wait) {
     messages[1] = account_id;
     if (wait == 0) {
         messages[0] = GET_ORBITAL;
-        MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
+        MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
         int found;
-        MPI_Recv(&found, 1, MPI_INT, bankmaster[id % bank_size + bank_size], 117, comm_bank, &status);
+        MPI_Recv(&found, 1, MPI_INT, bankmaster[id % bank_size], 117, comm_bank, &status);
         if (found != 0) {
-            recv_orbital(orb, bankmaster[id % bank_size + bank_size], id, comm_bank);
+            recv_orbital(orb, bankmaster[id % bank_size], id, comm_bank);
             return 1;
         } else {
             return 0;
         }
     } else {
         messages[0] = GET_ORBITAL_AND_WAIT;
-        MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
-        recv_orbital(orb, bankmaster[id % bank_size + bank_size], id, comm_bank);
+        MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
+        recv_orbital(orb, bankmaster[id % bank_size], id, comm_bank);
     }
 #endif
     return 1;
@@ -660,11 +658,11 @@ int BankAccount::get_orb_del(int id, Orbital &orb) {
     int messages[message_size];
     messages[0] = GET_ORBITAL_AND_DELETE;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
     int found;
-    MPI_Recv(&found, 1, MPI_INT, bankmaster[id % bank_size + bank_size], 117, comm_bank, &status);
+    MPI_Recv(&found, 1, MPI_INT, bankmaster[id % bank_size], 117, comm_bank, &status);
     if (found != 0) {
-        recv_orbital(orb, bankmaster[id % bank_size + bank_size], id, comm_bank);
+        recv_orbital(orb, bankmaster[id % bank_size], id, comm_bank);
         return 1;
     } else {
         return 0;
@@ -682,8 +680,8 @@ int BankAccount::put_func(int id, QMFunction &func) {
     int messages[message_size];
     messages[0] = SAVE_FUNCTION;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
-    send_function(func, bankmaster[id % bank_size + bank_size], id, comm_bank);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
+    send_function(func, bankmaster[id % bank_size], id, comm_bank);
 #endif
     return 1;
 }
@@ -696,8 +694,8 @@ int BankAccount::get_func(int id, QMFunction &func) {
     int messages[message_size];
     messages[0] = GET_FUNCTION;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
-    recv_function(func, bankmaster[id % bank_size + bank_size], id, comm_bank);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
+    recv_function(func, bankmaster[id % bank_size], id, comm_bank);
 #endif
     return 1;
 }
@@ -711,7 +709,7 @@ void BankAccount::set_datasize(int datasize, int iclient, MPI_Comm comm) {
             messages[0] = SET_DATASIZE;
             messages[1] = account_id;
             messages[2] = datasize;
-            MPI_Send(messages, message_size, MPI_INT, bankmaster[i + bank_size], 0, comm_bank);
+            MPI_Send(messages, message_size, MPI_INT, bankmaster[i], 0, comm_bank);
         }
     }
     MPI_Barrier(comm);
@@ -726,8 +724,8 @@ int BankAccount::put_data(int id, int size, double *data) {
     int messages[message_size];
     messages[0] = SAVE_DATA;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
-    MPI_Send(data, size, MPI_DOUBLE, bankmaster[id % bank_size + bank_size], id, comm_bank);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
+    MPI_Send(data, size, MPI_DOUBLE, bankmaster[id % bank_size], id, comm_bank);
 #endif
     return 1;
 }
@@ -739,8 +737,8 @@ int BankAccount::get_data(int id, int size, double *data) {
     int messages[message_size];
     messages[0] = GET_DATA;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size + bank_size], id, comm_bank);
-    MPI_Recv(data, size, MPI_DOUBLE, bankmaster[id % bank_size + bank_size], id, comm_bank, &status);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[id % bank_size], id, comm_bank);
+    MPI_Recv(data, size, MPI_DOUBLE, bankmaster[id % bank_size], id, comm_bank, &status);
 #endif
     return 1;
 }
@@ -759,8 +757,8 @@ int BankAccount::put_nodedata(int id, int nodeid, int size, double *data) {
     messages[2] = nodeid; // which block
     messages[3] = id;     // id within block
     messages[4] = size;   // size of this data
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size + bank_size], nodeid, comm_bank);
-    MPI_Send(data, size, MPI_DOUBLE, bankmaster[nodeid % bank_size + bank_size], nodeid, comm_bank);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size], nodeid, comm_bank);
+    MPI_Send(data, size, MPI_DOUBLE, bankmaster[nodeid % bank_size], nodeid, comm_bank);
 #endif
     return 1;
 }
@@ -779,8 +777,8 @@ int BankAccount::get_nodedata(int id, int nodeid, int size, double *data, std::v
     messages[2] = nodeid; // which block
     messages[3] = id;     // id within block.
     messages[4] = size;   // expected size of data
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size + bank_size], nodeid, comm_bank);
-    MPI_Recv(data, size, MPI_DOUBLE, bankmaster[nodeid % bank_size + bank_size], nodeid + 2, comm_bank, &status);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size], nodeid, comm_bank);
+    MPI_Recv(data, size, MPI_DOUBLE, bankmaster[nodeid % bank_size], nodeid + 2, comm_bank, &status);
 #endif
     return 1;
 }
@@ -793,21 +791,14 @@ int BankAccount::get_nodeblock(int nodeid, double *data, std::vector<int> &idVec
     int messages[message_size];
     messages[0] = GET_NODEBLOCK;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size + bank_size], nodeid, comm_bank);
-    MPI_Recv(
-        metadata_block, size_metadata, MPI_INT, bankmaster[nodeid % bank_size + bank_size], nodeid, comm_bank, &status);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size], nodeid, comm_bank);
+    MPI_Recv(metadata_block, size_metadata, MPI_INT, bankmaster[nodeid % bank_size], nodeid, comm_bank, &status);
     idVec.resize(metadata_block[1]);
     int size = metadata_block[2];
     if (size > 0)
-        MPI_Recv(idVec.data(),
-                 metadata_block[1],
-                 MPI_INT,
-                 bankmaster[nodeid % bank_size + bank_size],
-                 nodeid + 1,
-                 comm_bank,
-                 &status);
-    if (size > 0)
-        MPI_Recv(data, size, MPI_DOUBLE, bankmaster[nodeid % bank_size + bank_size], nodeid + 2, comm_bank, &status);
+        MPI_Recv(
+            idVec.data(), metadata_block[1], MPI_INT, bankmaster[nodeid % bank_size], nodeid + 1, comm_bank, &status);
+    if (size > 0) MPI_Recv(data, size, MPI_DOUBLE, bankmaster[nodeid % bank_size], nodeid + 2, comm_bank, &status);
 #endif
     return 1;
 }
@@ -821,22 +812,20 @@ int BankAccount::get_orbblock(int orbid, double *&data, std::vector<int> &nodeid
     int messages[message_size];
     messages[0] = GET_ORBBLOCK;
     messages[1] = account_id;
-    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size + bank_size], orbid, comm_bank);
-    MPI_Recv(
-        metadata_block, size_metadata, MPI_INT, bankmaster[nodeid % bank_size + bank_size], orbid, comm_bank, &status);
+    MPI_Send(messages, message_size, MPI_INT, bankmaster[nodeid % bank_size], orbid, comm_bank);
+    MPI_Recv(metadata_block, size_metadata, MPI_INT, bankmaster[nodeid % bank_size], orbid, comm_bank, &status);
     nodeidVec.resize(metadata_block[1]);
     int totsize = metadata_block[2];
     if (totsize > 0)
         MPI_Recv(nodeidVec.data(),
                  metadata_block[1],
                  MPI_INT,
-                 bankmaster[nodeid % bank_size + bank_size],
+                 bankmaster[nodeid % bank_size],
                  orbid + 1,
                  comm_bank,
                  &status);
     data = new double[totsize];
-    if (totsize > 0)
-        MPI_Recv(data, totsize, MPI_DOUBLE, bankmaster[nodeid % bank_size + bank_size], orbid + 2, comm_bank, &status);
+    if (totsize > 0) MPI_Recv(data, totsize, MPI_DOUBLE, bankmaster[nodeid % bank_size], orbid + 2, comm_bank, &status);
 #endif
     return 1;
 }
@@ -853,13 +842,13 @@ void BankAccount::clear_blockdata(int iclient, int nodeidmax, MPI_Comm comm) {
         messages[1] = account_id;
         messages[0] = CLEAR_BLOCKS;
         for (int i = 0; i < bank_size; i++) {
-            MPI_Send(messages, message_size, MPI_INT, bankmaster[i + bank_size], nodeidmax, comm_bank);
+            MPI_Send(messages, message_size, MPI_INT, bankmaster[i], nodeidmax, comm_bank);
         }
         for (int i = 0; i < bank_size; i++) {
             // wait until Bank is finished and has sent signal
             MPI_Status status;
             int message;
-            MPI_Recv(&message, 1, MPI_INT, bankmaster[i + bank_size], 78, comm_bank, &status);
+            MPI_Recv(&message, 1, MPI_INT, bankmaster[i], 78, comm_bank, &status);
         }
     }
     MPI_Barrier(comm);
