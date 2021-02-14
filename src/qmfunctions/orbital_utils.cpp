@@ -232,10 +232,8 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
     // The routine does avoid when possible to move data, but uses pointers and indices manipulation.
     // MPI version does not use OMP yet, Serial version uses OMP
 
-    std::cout<<orb_rank<<" rotate "<<std::endl;
     auto out = orbital::param_copy(Phi);
     int N = Phi.size();
-    mrchem::mpi::orb_bank.clear_blockdata();
 
     // 1) make union tree without coefficients
     mrcpp::FunctionTree<3> refTree(*MRA);
@@ -321,9 +319,9 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
     // 3) In the serial case we store the coeff pointers in coeffVec. In the mpi case the coeff are stored in the bank
 
     bool serial = mpi::orb_size == 1; // flag for serial/MPI switch
-    BankAccount nodesPhi; // to put the original nodes
-    BankAccount nodesRotated; // to put the rotated nodes
-    std::cout<<orb_rank<<" nodesRotated "<<nodesRotated.account_id<<std::endl;
+    BankAccount nodesPhi;             // to put the original nodes
+    BankAccount nodesRotated;         // to put the rotated nodes
+
     // used for serial only:
     std::vector<std::vector<double *>> coeffVec(Neff);
     std::vector<std::vector<int>> indexVec(Neff); // serialIx of the nodes
@@ -364,8 +362,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
     } else { // MPI case
 
         // send own nodes to bank, identifying them through the serialIx of refTree
-        // save_nodes(Phi, refTree, nodesPhi);
-        save_nodes(Phi, refTree);
+        save_nodes(Phi, refTree, nodesPhi);
         mrchem::mpi::barrier(
             mrchem::mpi::comm_orb); // required for now, as the blockdata functionality has no queue yet.
     }
@@ -483,16 +480,16 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
         std::vector<double> needsplit(Neff, 1.0); // which orbitals need splitting
         BankAccount nodeSplits;
         nodeSplits.set_datasize(Neff);
-       if (mpi::orb_rank == 0) mrchem::mpi::orb_bank.set_datasize(Neff);
-       mrchem::mpi::barrier(
+        //       if (mpi::orb_rank == 0) mrchem::mpi::orb_bank.set_datasize(Neff);
+        mrchem::mpi::barrier(
             mrchem::mpi::comm_orb); // required for now, as the blockdata functionality has no queue yet.
 
         DoubleMatrix coeffBlock(sizecoeff, Neff);
-         max_ix++; // largest node index + 1. to store rotated orbitals with different id
-      for (int n = 0; n < max_n; n++) {
+        max_ix++; // largest node index + 1. to store rotated orbitals with different id
+        for (int n = 0; n < max_n; n++) {
             if (n % mpi::orb_size != mpi::orb_rank) continue; // could use any partitioning
             double thres = prec * prec * scalefac_ref[n] * scalefac_ref[n];
-           // 4a) make list of orbitals that should split the parent node, i.e. include this node
+            // 4a) make list of orbitals that should split the parent node, i.e. include this node
             int parentid = parindexVec_ref[n];
             if (parentid == -1) {
                 // root node, split if output needed
@@ -510,9 +507,8 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                 }
                 csize = sizecoeff;
             } else {
-               // note that it will wait until data is available
-                //nodeSplits.get_data(parentid, Neff, split.data());
-                mrchem::mpi::orb_bank.get_data(parentid, Neff, split.data());
+                // note that it will wait until data is available
+                nodeSplits.get_data(parentid, Neff, split.data());
                 csize = sizecoeffW;
             }
             std::vector<int> orbiVec;
@@ -524,8 +520,7 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
 
             // 4b) rotate this node
             DoubleMatrix coeffBlock(csize, Neff); // largest possible used size
-            //nodesPhi.get_nodeblock(indexVec_ref[n], coeffBlock.data(), orbjVec);
-            mrchem::mpi::orb_bank.get_nodeblock(indexVec_ref[n], coeffBlock.data(), orbjVec);
+            nodesPhi.get_nodeblock(indexVec_ref[n], coeffBlock.data(), orbjVec);
             coeffBlock.conservativeResize(Eigen::NoChange, orbjVec.size()); // keep only used part
 
             // chunk of U, with reorganized indices and separate blocks for real and imag:
@@ -550,19 +545,12 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
                 int kwstart = csize - sizecoeffW; // do not include scaling
                 for (int k = kwstart; k < csize; k++) wnorm += rotatedCoeff.col(i)[k] * rotatedCoeff.col(i)[k];
                 if (thres < wnorm or prec < 0) needsplit[orbiVec[i]] = 1.0;
-                //nodesRotated.put_nodedata(
-                //   orbiVec[i], indexVec_ref[n], csize, rotatedCoeff.col(i).data());
-                mrchem::mpi::orb_bank.put_nodedata(
-                    orbiVec[i], indexVec_ref[n] + max_ix, csize, rotatedCoeff.col(i).data());
-}
-            //if(indexVec_ref[n]==229)std::cout<<orb_rank<<" THISIS 229 put_data "<<n<<std::endl;
-            //nodeSplits.put_data(indexVec_ref[n], Neff, needsplit.data());
-            mrchem::mpi::orb_bank.put_data(indexVec_ref[n], Neff, needsplit.data());
-
-       }
-         mrchem::mpi::orb_bank.clear_blockdata(mpi::orb_rank, max_ix, mpi::comm_orb);
+                nodesRotated.put_nodedata(orbiVec[i], indexVec_ref[n] + max_ix, csize, rotatedCoeff.col(i).data());
+            }
+            nodeSplits.put_data(indexVec_ref[n], Neff, needsplit.data());
+        }
+        mpi::barrier(mpi::comm_orb); // wait until all rotated nodes are ready
     }
-    std::cout<<orb_rank<<" end rotate nodes"<<std::endl;
 
     // 5) reconstruct trees using rotated nodes.
 
@@ -594,8 +582,8 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
             for (int ibank = 0; ibank < mpi::bank_size; ibank++) {
                 std::vector<int> nodeidVec;
                 double *dataVec; // will be allocated by bank
-                //nodesRotated.get_orbblock(j, dataVec, nodeidVec, ibank);
-                mrchem::mpi::orb_bank.get_orbblock(j, dataVec, nodeidVec, ibank);
+                nodesRotated.get_orbblock(j, dataVec, nodeidVec, ibank);
+                // mrchem::mpi::orb_bank.get_orbblock(j, dataVec, nodeidVec, ibank);
                 if (nodeidVec.size() > 0) pointerstodelete.push_back(dataVec);
                 int shift = 0;
                 for (int n = 0; n < nodeidVec.size(); n++) {
@@ -622,59 +610,13 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
         }
         mrchem::mpi::orb_bank.clear_blockdata();
     }
-    std::cout<<orb_rank<<" end rotate "<<std::endl;
     return out;
 }
 
 /** @brief Save all nodes in bank; identify them using serialIx from refTree
  * shift is a shift applied in the id
  */
-void orbital::save_nodes(OrbitalVector Phi, mrcpp::FunctionTree<3> &refTree, int shift) {
-    int sizecoeff = (1 << refTree.getDim()) * refTree.getKp1_d();
-    int sizecoeffW = ((1 << refTree.getDim()) - 1) * refTree.getKp1_d();
-    int max_nNodes = refTree.getNNodes();
-    std::vector<double *> coeffVec;
-    std::vector<double> scalefac;
-    std::vector<int> indexVec;    // SerialIx of the node in refOrb
-    std::vector<int> parindexVec; // SerialIx of the parent node
-    int N = Phi.size();
-    int max_ix;
-    for (int j = 0; j < N; j++) {
-        if (not mpi::my_orb(Phi[j])) continue;
-        // make vector with all coef address and their index in the union grid
-        if (Phi[j].hasReal()) {
-            Phi[j].real().makeCoeffVector(coeffVec, indexVec, parindexVec, scalefac, max_ix, refTree);
-            int max_n = indexVec.size();
-            // send node coefs from Phi[j] to bank
-            // except for the root nodes, only wavelets are sent
-            for (int i = 0; i < max_n; i++) {
-                if (indexVec[i] < 0) continue; // nodes that are not in refOrb
-                int csize = sizecoeffW;
-                if (parindexVec[i] < 0) csize = sizecoeff;
-                mrchem::mpi::orb_bank.put_nodedata(j, indexVec[i] + shift, csize, &(coeffVec[i][sizecoeff - csize]));
-            }
-        }
-        // Imaginary parts are considered as orbitals with an orbid shifted by N
-        if (Phi[j].hasImag()) {
-            Phi[j].imag().makeCoeffVector(coeffVec, indexVec, parindexVec, scalefac, max_ix, refTree);
-            int max_n = indexVec.size();
-            // send node coefs from Phi[j] to bank
-            for (int i = 0; i < max_n; i++) {
-                if (indexVec[i] < 0) continue; // nodes that are not in refOrb
-                // NB: the identifier (indexVec[i]) must be shifted for not colliding with the nodes from the real part
-                int csize = sizecoeffW;
-                if (parindexVec[i] < 0) csize = sizecoeff;
-                mrchem::mpi::orb_bank.put_nodedata(
-                    j + N, indexVec[i] + shift, csize, &(coeffVec[i][sizecoeff - csize]));
-            }
-        }
-    }
-}
-
-/** @brief Save all nodes in bank; identify them using serialIx from refTree
- * shift is a shift applied in the id
- */
-void orbital::save_nodes(OrbitalVector Phi, mrcpp::FunctionTree<3> &refTree, BankAccount& account) {
+void orbital::save_nodes(OrbitalVector Phi, mrcpp::FunctionTree<3> &refTree, BankAccount &account) {
     int sizecoeff = (1 << refTree.getDim()) * refTree.getKp1_d();
     int sizecoeffW = ((1 << refTree.getDim()) - 1) * refTree.getKp1_d();
     int max_nNodes = refTree.getNNodes();
@@ -709,8 +651,7 @@ void orbital::save_nodes(OrbitalVector Phi, mrcpp::FunctionTree<3> &refTree, Ban
                 // NB: the identifier (indexVec[i]) must be shifted for not colliding with the nodes from the real part
                 int csize = sizecoeffW;
                 if (parindexVec[i] < 0) csize = sizecoeff;
-                account.put_nodedata(
-                    j + N, indexVec[i], csize, &(coeffVec[i][sizecoeff - csize]));
+                account.put_nodedata(j + N, indexVec[i], csize, &(coeffVec[i][sizecoeff - csize]));
             }
         }
     }
@@ -927,7 +868,6 @@ void orbital::orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi)
 ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
 
     // TODO: spin separate in block?
-    std::cout<<orb_rank<<" calc_overlap_matrix "<<std::endl;
     int N = BraKet.size();
     ComplexMatrix S = ComplexMatrix::Zero(N, N);
     DoubleMatrix Sreal = DoubleMatrix::Zero(2 * N, 2 * N); // same as S, but stored as 4 blocks, rr,ri,ir,ii

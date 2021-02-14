@@ -27,10 +27,10 @@
 #include <MRCPP/Timer>
 
 #include "parallel.h"
-#include "utils/Bank.h"
 #include "qmfunctions/ComplexFunction.h"
 #include "qmfunctions/Density.h"
 #include "qmfunctions/Orbital.h"
+#include "utils/Bank.h"
 
 #ifdef MRCHEM_HAS_OMP
 #ifndef MRCPP_HAS_OMP
@@ -122,16 +122,16 @@ void mpi::initialize() {
     if (mpi::world_size - mpi::bank_size < 1) MSG_ABORT("No MPI ranks left for working!");
     if (mpi::bank_size < 1 and mpi::world_size > 1) MSG_ABORT("Bank size must be at least one when using MPI!");
 
-    mpi::bankmaster.resize(2*mpi::bank_size);
-    for (int i = 0; i < 2*mpi::bank_size; i++) {
+    mpi::bankmaster.resize(2 * mpi::bank_size);
+    for (int i = 0; i < 2 * mpi::bank_size; i++) {
         mpi::bankmaster[i] = mpi::world_size - i - 1; // rank of the bankmasters
     }
-    if (mpi::world_rank < mpi::world_size - 2*mpi::bank_size) {
+    if (mpi::world_rank < mpi::world_size - 2 * mpi::bank_size) {
         // everything which is left
         mpi::is_bank = 0;
         mpi::is_centralbank = 0;
         mpi::is_bankclient = 1;
-    } else if  (mpi::world_rank < mpi::world_size - mpi::bank_size) {
+    } else if (mpi::world_rank < mpi::world_size - mpi::bank_size) {
         // special group of bankmasters
         mpi::is_bank = 1;
         mpi::is_centralbank = 1;
@@ -142,7 +142,7 @@ void mpi::initialize() {
         mpi::is_bank = 1;
         mpi::is_centralbank = 0;
         mpi::is_bankclient = 0;
-        if (mpi::world_rank == mpi::world_size - 2*mpi::bank_size) mpi::is_bankmaster = 1;
+        if (mpi::world_rank == mpi::world_size - 2 * mpi::bank_size) mpi::is_bankmaster = 1;
     }
     MPI_Comm_split(MPI_COMM_WORLD, mpi::is_bankclient, mpi::world_rank, &comm_remainder);
 
@@ -174,13 +174,13 @@ void mpi::initialize() {
     int flag;
     MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &val, &flag); // max value allowed by MPI for tags
     max_tag = *(int *)val / 2;
-    id_shift = max_tag / 2;       // half is reserved for non orbital.
+    id_shift = max_tag / 2; // half is reserved for non orbital.
 
     if (mpi::is_bank) {
         // bank is open until end of program
-        if(mpi::is_centralbank){
+        if (mpi::is_centralbank) {
             dataBank.open();
-        }else{
+        } else {
             mpi::orb_bank.open();
         }
         mpi::finalize();
@@ -193,7 +193,7 @@ void mpi::initialize() {
 
 void mpi::finalize() {
 #ifdef MRCHEM_HAS_MPI
-    std::cout<<world_rank<<" finalize"<<std::endl;
+    std::cout << world_rank << " finalize" << std::endl;
     if (mpi::bank_size > 0 and mpi::grand_master()) {
         println(3, " max data in bank " << mpi::orb_bank.get_maxtotalsize() << " MB ");
         mpi::orb_bank.close();
@@ -552,7 +552,7 @@ Bank::~Bank() {
 }
 
 void Bank::open() {
-    std::cout<<mpi::world_rank<<" opened bank "<<std::endl;
+    std::cout << mpi::world_rank << " opened bank " << std::endl;
 #ifdef MRCHEM_HAS_MPI
     MPI_Status status;
     char safe_data1;
