@@ -1,8 +1,8 @@
 #include <MRCPP/Printer>
 #include <MRCPP/Timer>
 
-#include "/home/peter/mrchem/src/qmfunctions/Orbital.h"
-#include "/home/peter/mrchem/src/utils/Bank.h"
+#include "qmfunctions/Orbital.h"
+#include "Bank.h"
 
 namespace mrchem {
 

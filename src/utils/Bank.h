@@ -2,9 +2,9 @@
 
 #include "MRCPP/Parallel"
 
-#include "/home/peter/mrchem/src/mrchem.h"
-#include "/home/peter/mrchem/src/parallel.h"
-#include "/home/peter/mrchem/src/qmfunctions/qmfunction_fwd.h"
+#include "mrchem.h"
+#include "parallel.h"
+#include "qmfunctions/qmfunction_fwd.h"
 
 namespace mrchem {
 
