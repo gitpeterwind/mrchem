@@ -138,18 +138,33 @@ as it will be literally prepended to the ``mrchem.x`` command when the
 
 
 Job example (Betzy)
--------------------
++++++++++++++++++++
 
-This job will use 4 compute nodes, with 8 mpi processes on each, and each mpi process will use 16 OpenMP threads. The flags are optimized for OpenMPI (foss) library.
+This job will use 4 compute nodes, with 8 MPI processes on each, and each MPI
+process will use 16 OpenMP threads. The flags are optimized for OpenMPI (foss)
+library on Betzy.
 
-.. literalinclude:: Betzy_example.job
+.. literalinclude:: betzy_example.job
 
-``--rank-by node`` tells the system to place the first mpi rank on the first node, the second mpi rank on the second node, until the last node, then start at the first node again.
+``--rank-by node``
+  Tells the system to place the first MPI rank on the first node, the second MPI
+  rank on the second node, until the last node, then start at the first node again.
 
-``-map-by numa`` tells the system to map mpi ranks according to numa (Non Uniform Memory Access). On Betzy memory configuration groups cores by groups of 16, with cores in the same group having the same access to memory (other cores will have access to that part of the memory too, but slower).
+``--map-by numa``
+  Tells the system to map MPI ranks according to NUMA (Non Uniform Memory Access).
+  On Betzy memory configuration groups cores by groups of 16, with cores in the same
+  group having the same access to memory (other cores will have access to that part
+  of the memory too, but slower).
 
-``-bind-to numa`` will tell the system to bind cores to one numa group. That means that a process will only be allowed to use one of the 16 cores of the group. (The operating system may change the core assigned to a thread/process and, without precautions, it may be assigned to any other core, which would result in much reduced performance). The 16 cores of the group may then be used by the threads initiated by that mpi process.
+``--bind-to numa``
+  Tells the system to bind cores to one NUMA group. That means that a process will
+  only be allowed to use one of the 16 cores of the group. (The operating system may
+  change the core assigned to a thread/process and, without precautions, it may be
+  assigned to any other core, which would result in much reduced performance). The 16
+  cores of the group may then be used by the threads initiated by that MPI process.
 
+More examples can be found in the `mrchem-examples <https://github.com/MRChemSoft/mrchem-examples>`_
+repository on GitHub.
 
 Parallel pitfalls
 -----------------

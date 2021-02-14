@@ -1,0 +1,9 @@
+#!/bin/bash -l
+#SBATCH --nodes=4
+#SBATCH --tasks-per-node=8
+#SBATCH --cpus-per-task=16
+
+export UCX_LOG_LEVEL=ERROR
+export OMP_NUM_THREADS=16
+
+~/my_path/to/mrchem --launcher='mpirun --rank-by node --map-by numa --bind-to numa' mw6
