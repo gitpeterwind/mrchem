@@ -105,7 +105,7 @@ void ExchangePotential::setup(double prec) {
  */
 void ExchangePotential::clear() {
     clearInternal();
-    // clearBank();
+    clearBank();
     clearApplyPrec();
 }
 

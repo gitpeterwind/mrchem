@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "utils/Bank.h"
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/qmfunction_fwd.h"
 #include "qmoperators/QMOperator.h"
@@ -46,7 +47,7 @@ protected:
     void clear() override;
 
     virtual void setupBank() = 0;
-    void clearBank();
+    virtual void clearBank() {}
 
     virtual int testInternal(Orbital phi_p) const { return -1; }
     virtual void setupInternal(double prec) {}

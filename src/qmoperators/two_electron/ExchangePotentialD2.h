@@ -37,12 +37,15 @@ public:
     friend class ExchangeOperator;
 
 private:
-    BankAccount PhiBank;
+    BankAccount PhiBank; // to put the Orbitals
+    BankAccount XBank;
+    BankAccount YBank;
     bool useOnlyX;                             ///< true if X and Y are the same set of orbitals
     std::shared_ptr<OrbitalVector> orbitals_x; ///< first set of perturbed orbitals defining the exchange operator
     std::shared_ptr<OrbitalVector> orbitals_y; ///< second set of perturbed orbitals defining the exchange operator
 
     void setupBank() override;
+    void clearBank();
 
     Orbital apply(Orbital phi_p) override;
     Orbital dagger(Orbital phi_p) override;

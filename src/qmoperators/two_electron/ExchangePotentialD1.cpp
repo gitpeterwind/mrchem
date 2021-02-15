@@ -41,6 +41,13 @@ void ExchangePotentialD1::setupBank() {
     mrcpp::print::time(4, "Setting up exchange bank", timer);
 }
 
+/** @brief Clears rbital bank accounts.
+ *
+ */
+void ExchangePotentialD1::clearBank() {
+    PhiBank.clear();
+}
+
 /** @brief Test if a given contribution has been precomputed
  *
  * @param[in] phi_p orbital for which the check is performed
@@ -239,8 +246,6 @@ void ExchangePotentialD1::setupInternal(double prec) {
     println(3, " fetched in total " << foundcount << " Exchange contributions from bank");
     mrcpp::print::time(3, "Time send/rcv exchanges", timerS);
     mrcpp::print::time(3, "Time calculate exchanges", t_calc);
-
-    PhiBank.clear();
 
     auto n = orbital::get_n_nodes(Ex);
     auto m = orbital::get_size_nodes(Ex);
