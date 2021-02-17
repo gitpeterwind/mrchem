@@ -463,6 +463,8 @@ int CentralBank::clearAccount(int account, int iclient, MPI_Comm comm) {
 #ifdef MRCHEM_HAS_MPI
     closeAccount(account);
     return openAccount(iclient, comm);
+#else
+    return 1;
 #endif
 }
 void CentralBank::clear_account(int account) {
@@ -543,6 +545,7 @@ void CentralBank::clear_account(int account) {
 
 int CentralBank::openAccount(int iclient, MPI_Comm comm) {
 // NB: this is a collective call, since we need all the accounts to be synchronized
+    int account_id = -1;
 #ifdef MRCHEM_HAS_MPI
     MPI_Status status;
     int messages[message_size];
@@ -550,7 +553,6 @@ int CentralBank::openAccount(int iclient, MPI_Comm comm) {
     int size;
     MPI_Comm_size(comm, &size);
     messages[1] = size;
-    int account_id = -1;
     if (iclient == 0) {
         for (int i = 0; i < bank_size; i++) {
             int account_id_i;
@@ -563,8 +565,8 @@ int CentralBank::openAccount(int iclient, MPI_Comm comm) {
     } else {
         MPI_Bcast(&account_id, 1, MPI_INT, 0, comm);
     }
-    return account_id;
 #endif
+    return account_id;
 }
 
 void CentralBank::closeAccount(int account_id) {
