@@ -39,7 +39,6 @@ using MPI_Comm = int;
 #endif
 
 #include "mrchem.h"
-//#include "utils/Bank.h"
 #include "qmfunctions/qmfunction_fwd.h"
 
 namespace mrchem {

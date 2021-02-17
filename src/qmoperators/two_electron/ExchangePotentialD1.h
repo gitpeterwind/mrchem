@@ -29,7 +29,7 @@ public:
     friend class ExchangeOperator;
 
 private:
-    BankAccount PhiBank;// to put the Orbitals
+    BankAccount PhiBank; // to put the Orbitals
     void setupBank() override;
     void clearBank();
     int testInternal(Orbital phi_p) const override;

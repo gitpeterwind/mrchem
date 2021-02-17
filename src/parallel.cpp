@@ -170,9 +170,7 @@ void mpi::initialize() {
 
     if (mpi::is_bank) {
         // bank is open until end of program
-        if (mpi::is_centralbank) {
-            dataBank.open();
-        }
+        if (mpi::is_centralbank) { dataBank.open(); }
         mpi::finalize();
         exit(EXIT_SUCCESS);
     }

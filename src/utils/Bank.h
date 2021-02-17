@@ -25,24 +25,24 @@ struct queue_struct {
 };
 int const CLOSE_BANK = 1;
 int const CLEAR_BANK = 2;
-int const NEW_ACCOUNT = -1;
-int const CLOSE_ACCOUNT = 0;
-int const GET_ORBITAL = 3;
-int const GET_ORBITAL_AND_WAIT = 4;
-int const GET_ORBITAL_AND_DELETE = 5;
-int const SAVE_ORBITAL = 6;
-int const GET_FUNCTION = 7;
-int const SAVE_FUNCTION = 8;
-int const SET_DATASIZE = 9;
-int const GET_DATA = 10;
-int const SAVE_DATA = 11;
-int const SAVE_NODEDATA = 12;
-int const GET_NODEDATA = 13;
-int const GET_NODEBLOCK = 14;
-int const GET_ORBBLOCK = 15;
-int const CLEAR_BLOCKS = 16;
-int const GETMAXTOTDATA = 17;
-int const GETTOTDATA = 18;
+int const NEW_ACCOUNT = 3;
+int const CLOSE_ACCOUNT = 4;
+int const GET_ORBITAL = 5;
+int const GET_ORBITAL_AND_WAIT = 6;
+int const GET_ORBITAL_AND_DELETE = 7;
+int const SAVE_ORBITAL = 8;
+int const GET_FUNCTION = 9;
+int const SAVE_FUNCTION = 10;
+int const SET_DATASIZE = 11;
+int const GET_DATA = 12;
+int const SAVE_DATA = 13;
+int const SAVE_NODEDATA = 14;
+int const GET_NODEDATA = 15;
+int const GET_NODEBLOCK = 16;
+int const GET_ORBBLOCK = 17;
+int const CLEAR_BLOCKS = 18;
+int const GETMAXTOTDATA = 19;
+int const GETTOTDATA = 20;
 
 class CentralBank {
 public:
@@ -55,6 +55,7 @@ public:
     void closeAccount(int account_id);                         // remove the account
     long long totcurrentsize = 0ll;                            // number of kB used by all accounts
     int get_maxtotalsize();
+
 private:
     std::vector<int> accounts;                          // open bank accounts
     std::map<int, std::vector<deposit> *> get_deposits; // gives deposits of an account
