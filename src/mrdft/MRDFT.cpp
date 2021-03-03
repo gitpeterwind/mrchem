@@ -27,6 +27,7 @@
 
 #include "MRDFT.h"
 #include "xc_utils.h"
+#include "utils/Bank.h"
 
 namespace mrdft {
 
@@ -66,11 +67,18 @@ mrcpp::FunctionTreeVector<3> MRDFT::evaluate(mrcpp::FunctionTreeVector<3> &inp) 
     auto nOutCtr = functional().getCtrOutputLength();
     mrcpp::FunctionTreeVector<3> ctrOutVec = grid().generate(nOutCtr);
 
+    // divide nNodes into parts assigned to each MPI rank
+    int nNodes = grid().size();
+    int d = (nNodes + mrchem::mpi::orb_size - 1) / mrchem::mpi::orb_size; // max number of nodes treated by each rank
+    int n_start = mrchem::mpi::orb_rank * d;
+    int n_end = std::min(nNodes, (mrchem::mpi::orb_rank + 1) * d);
+
+    std::vector<Eigen::MatrixXd> ctrOutDataVec(n_end - n_start); // to put the XC data for each local node.
+
 #pragma omp parallel
     {
-        auto nNodes = grid().size();
 #pragma omp for schedule(guided)
-        for (int n = 0; n < nNodes; n++) {
+        for (int n = n_start; n < n_end; n++) {
             auto xcInpNodes = xc_utils::fetch_nodes(n, xcInpVec);
             auto xcInpData = xc_utils::compress_nodes(xcInpNodes);
 
@@ -82,12 +90,28 @@ mrcpp::FunctionTreeVector<3> MRDFT::evaluate(mrcpp::FunctionTreeVector<3> &inp) 
             auto ctrInpData = xc_utils::compress_nodes(ctrInpNodes);
             auto ctrOutData = functional().contract(xcOutData, ctrInpData);
 
-            auto ctrOutNodes = xc_utils::fetch_nodes(n, ctrOutVec);
-            xc_utils::expand_nodes(ctrOutNodes, ctrOutData);
+            ctrOutDataVec[n - n_start] = std::move(ctrOutData);
+            // auto ctrOutNodes = xc_utils::fetch_nodes(n, ctrOutVec);
+            // xc_utils::expand_nodes(ctrOutNodes, ctrOutData);
         }
     }
     mrcpp::clear(xcInpVec, false);
     mrcpp::clear(ctrInpVec, false);
+
+    mrchem::BankAccount ctrOutBank; // to put the ctrOutDataVec;
+    // note that mpi cannot run in multiple omp threads
+    int nFcs = ctrOutDataVec[0].rows();
+    int nPts = ctrOutDataVec[0].cols();
+    int size = nFcs * nPts;
+    for (int n = n_start; n < n_end; n++) { ctrOutBank.put_data(n, size, ctrOutDataVec[n - n_start].data()); }
+
+    // fetch all nodes from bank
+    for (int n = 0; n < nNodes; n++) {
+        Eigen::MatrixXd ctrOutData = Eigen::MatrixXd::Zero(nFcs, nPts);
+        ctrOutBank.get_data(n, size, ctrOutData.data());
+        auto ctrOutNodes = xc_utils::fetch_nodes(n, ctrOutVec);
+        xc_utils::expand_nodes(ctrOutNodes, ctrOutData);
+    }
 
     // Reconstruct raw xcfun output functions
     /*

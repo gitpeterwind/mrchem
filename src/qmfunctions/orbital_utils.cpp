@@ -325,7 +325,8 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
     // used for serial only:
     std::vector<std::vector<double *>> coeffVec(Neff);
     std::vector<std::vector<int>> indexVec(Neff); // serialIx of the nodes
-    std::map<int, std::vector<int>> node2orbVec; // for each node index, gives a vector with the indices of the orbitals using this node
+    std::map<int, std::vector<int>>
+        node2orbVec; // for each node index, gives a vector with the indices of the orbitals using this node
     std::vector<std::map<int, int>> orb2node(Neff); // for a given orbital and a given node, gives the node index in the
                                                     // orbital given the node index in the reference tree
 
@@ -362,17 +363,21 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
 
         // send own nodes to bank, identifying them through the serialIx of refTree
         save_nodes(Phi, refTree, nodesPhi);
-        mrchem::mpi::barrier(mrchem::mpi::comm_orb); // required for now, as the blockdata functionality has no queue yet.
+        mrchem::mpi::barrier(
+            mrchem::mpi::comm_orb); // required for now, as the blockdata functionality has no queue yet.
     }
 
     // 4) rotate all the nodes
     IntMatrix split_serial; // in the serial case all split are store in one array
-    std::vector<double> split(Neff, -1.0); // which orbitals need splitting (at a given node). For now double for compatibilty with bank
+    std::vector<double> split(
+        Neff, -1.0); // which orbitals need splitting (at a given node). For now double for compatibilty with bank
     std::vector<double> needsplit(Neff, 1.0);           // which orbitals need splitting
     std::vector<std::vector<double *>> coeffpVec(Neff); // to put pointers to the rotated coefficient for each orbital
-    std::vector<std::map<int, int>> ix2coef(Neff); // to find the index in for example rotCoeffVec[] corresponding to a serialIx
+    std::vector<std::map<int, int>> ix2coef(
+        Neff); // to find the index in for example rotCoeffVec[] corresponding to a serialIx
     int csize; // size of the current coefficients (different for roots and branches)
-    std::vector<DoubleMatrix> rotatedCoeffVec; // just to ensure that the data from rotatedCoeff is not deleted, since we point to it.
+    std::vector<DoubleMatrix>
+        rotatedCoeffVec; // just to ensure that the data from rotatedCoeff is not deleted, since we point to it.
     // j indices are for unrotated orbitals, i indices are for rotated orbitals
     if (serial) {
         std::map<int, int> ix2coef_ref;   // to find the index n corresponding to a serialIx
@@ -470,11 +475,12 @@ OrbitalVector orbital::rotate(OrbitalVector &Phi, const ComplexMatrix &U, double
     } else { // MPI case
 
         // TODO? rotate in bank, so that we do not get and put. Requires clever handling of splits.
-        std::vector<double> split(Neff, -1.0); // which orbitals need splitting (at a given node). For now double for compatibilty with bank
+        std::vector<double> split(
+            Neff, -1.0); // which orbitals need splitting (at a given node). For now double for compatibilty with bank
         std::vector<double> needsplit(Neff, 1.0); // which orbitals need splitting
         BankAccount nodeSplits;
-        nodeSplits.set_datasize(Neff);
-        mrchem::mpi::barrier(mrchem::mpi::comm_orb); // required for now, as the blockdata functionality has no queue yet.
+        mrchem::mpi::barrier(
+            mrchem::mpi::comm_orb); // required for now, as the blockdata functionality has no queue yet.
 
         DoubleMatrix coeffBlock(sizecoeff, Neff);
         max_ix++; // largest node index + 1. to store rotated orbitals with different id
@@ -884,7 +890,8 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
 
     // only used for serial case:
     std::vector<std::vector<double *>> coeffVec(2 * N);
-    std::map<int, std::vector<int>> node2orbVec; // for each node index, gives a vector with the indices of the orbitals using this node
+    std::map<int, std::vector<int>>
+        node2orbVec; // for each node index, gives a vector with the indices of the orbitals using this node
     std::vector<std::map<int, int>> orb2node(2 * N); // for a given orbital and a given node, gives the node index in
                                                      // the orbital given the node index in the reference tree
 
@@ -1043,11 +1050,13 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
 
     // only used for serial case:
     std::vector<std::vector<double *>> coeffVecBra(2 * N);
-    std::map<int, std::vector<int>> node2orbVecBra; // for each node index, gives a vector with the indices of the orbitals using this node
+    std::map<int, std::vector<int>>
+        node2orbVecBra; // for each node index, gives a vector with the indices of the orbitals using this node
     std::vector<std::map<int, int>> orb2nodeBra(2 * N); // for a given orbital and a given node, gives the node index in
                                                         // the orbital given the node index in the reference tree
     std::vector<std::vector<double *>> coeffVecKet(2 * M);
-    std::map<int, std::vector<int>> node2orbVecKet; // for each node index, gives a vector with the indices of the orbitals using this node
+    std::map<int, std::vector<int>>
+        node2orbVecKet; // for each node index, gives a vector with the indices of the orbitals using this node
     std::vector<std::map<int, int>> orb2nodeKet(2 * M); // for a given orbital and a given node, gives the node index in
                                                         // the orbital given the node index in the reference tree
     BankAccount nodesBra;
@@ -1244,7 +1253,8 @@ DoubleMatrix orbital::calc_norm_overlap_matrix(OrbitalVector &BraKet) {
 
     // only used for serial case:
     std::vector<std::vector<double *>> coeffVec(2 * N);
-    std::map<int, std::vector<int>> node2orbVec; // for each node index, gives a vector with the indices of the orbitals using this node
+    std::map<int, std::vector<int>>
+        node2orbVec; // for each node index, gives a vector with the indices of the orbitals using this node
     std::vector<std::map<int, int>> orb2node(2 * N); // for a given orbital and a given node, gives the node index in
                                                      // the orbital given the node index in the reference tree
 

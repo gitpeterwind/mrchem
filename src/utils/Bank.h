@@ -102,7 +102,6 @@ public:
     int get_orb_del(int id, Orbital &orb);
     int put_func(int id, QMFunction &func);
     int get_func(int id, QMFunction &func);
-    void set_datasize(int datasize, int iclient = orb_rank, MPI_Comm comm = comm_orb);
     int put_data(int id, int size, double *data);
     int get_data(int id, int size, double *data);
     int put_nodedata(int id, int nodeid, int size, double *data);
