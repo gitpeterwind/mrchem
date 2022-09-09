@@ -53,13 +53,13 @@ public:
 
     double setConvergenceThreshold(double prec);
 
-    QMFunction &getCurrentReactionPotential() { return this->Vr_n; }
-    QMFunction &getPreviousReactionPotential() { return this->Vr_nm1; }
-    QMFunction &getCurrentDifferenceReactionPotential() { return this->dVr_n; }
+    mrcpp::CplxFunc &getCurrentReactionPotential() { return this->Vr_n; }
+    mrcpp::CplxFunc &getPreviousReactionPotential() { return this->Vr_nm1; }
+    mrcpp::CplxFunc &getCurrentDifferenceReactionPotential() { return this->dVr_n; }
 
-    QMFunction &getCurrentGamma() { return this->gamma_n; }
-    QMFunction &getPreviousGamma() { return this->gamma_nm1; }
-    QMFunction &getCurrentDifferenceGamma() { return this->dgamma_n; }
+    mrcpp::CplxFunc &getCurrentGamma() { return this->gamma_n; }
+    mrcpp::CplxFunc &getPreviousGamma() { return this->gamma_nm1; }
+    mrcpp::CplxFunc &getCurrentDifferenceGamma() { return this->dgamma_n; }
 
     Permittivity &getPermittivity() { return this->epsilon; }
 
@@ -88,13 +88,13 @@ private:
     Density rho_ext;
     Density rho_tot;
 
-    QMFunction Vr_n;
-    QMFunction dVr_n;
-    QMFunction Vr_nm1;
+    mrcpp::CplxFunc Vr_n;
+    mrcpp::CplxFunc dVr_n;
+    mrcpp::CplxFunc Vr_nm1;
 
-    QMFunction gamma_n;
-    QMFunction dgamma_n;
-    QMFunction gamma_nm1;
+    mrcpp::CplxFunc gamma_n;
+    mrcpp::CplxFunc dgamma_n;
+    mrcpp::CplxFunc gamma_nm1;
 
     mrcpp::FunctionTreeVector<3> d_cavity; //!< Vector containing the 3 partial derivatives of the cavity function
     std::shared_ptr<mrcpp::DerivativeOperator<3>> derivative;
@@ -103,22 +103,22 @@ private:
     void setDCavity();
 
     void computeDensities(OrbitalVector &Phi);
-    void computeGamma(QMFunction &potential, QMFunction &out_gamma);
+    void computeGamma(mrcpp::CplxFunc &potential, mrcpp::CplxFunc &out_gamma);
 
-    QMFunction solvePoissonEquation(const QMFunction &ingamma);
+    mrcpp::CplxFunc solvePoissonEquation(const mrcpp::CplxFunc &ingamma);
 
-    void accelerateConvergence(QMFunction &dfunc, QMFunction &func, KAIN &kain);
+    void accelerateConvergence(mrcpp::CplxFunc &dfunc, mrcpp::CplxFunc &func, KAIN &kain);
 
-    // TODO    void variationalSCRF(QMFunction V_vac);
-    void nestedSCRF(QMFunction V_vac);
-    QMFunction &setup(double prec, const std::shared_ptr<mrchem::OrbitalVector> &Phi);
+    // TODO    void variationalSCRF(mrcpp::CplxFunc V_vac);
+    void nestedSCRF(mrcpp::CplxFunc V_vac);
+    mrcpp::CplxFunc &setup(double prec, const std::shared_ptr<mrchem::OrbitalVector> &Phi);
 
     double getNuclearEnergy();
     double getElectronicEnergy();
     double getTotalEnergy();
-    void resetQMFunction(QMFunction &function);
-    void updateCurrentReactionPotential(QMFunction &Vr_np1);
-    void updateCurrentGamma(QMFunction &gamma_np1);
+    void resetCplxFunc(mrcpp::CplxFunc &function);
+    void updateCurrentReactionPotential(mrcpp::CplxFunc &Vr_np1);
+    void updateCurrentGamma(mrcpp::CplxFunc &gamma_np1);
 
     void printParameters() const;
     void printConvergenceRow(int i, double norm, double update, double time) const;

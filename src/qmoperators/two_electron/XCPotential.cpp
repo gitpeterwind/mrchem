@@ -27,9 +27,6 @@
 #include <MRCPP/Timer>
 
 #include "XCPotential.h"
-#include "parallel.h"
-#include "qmfunctions/Density.h"
-#include "qmfunctions/Orbital.h"
 #include "qmfunctions/density_utils.h"
 #include "qmfunctions/orbital_utils.h"
 

@@ -25,7 +25,8 @@
 
 #pragma once
 
-#include "qmfunction_fwd.h"
+#include "mrchem.h"
+#include "Orbital.h"
 
 namespace mrchem {
 namespace density {

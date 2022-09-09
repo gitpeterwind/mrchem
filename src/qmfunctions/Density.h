@@ -25,13 +25,15 @@
 
 #pragma once
 
-#include "QMFunction.h"
+#include "MRCPP/MWFunctions"
+
+#include "Orbital.h"
 
 /** @class Density
  *
  * @brief General complex-valued function to handle densities (incl trans. densities)
  *
- * Inherits the general features of a complex function from QMFunction which
+ * Inherits the general features of a complex function from mrcpp::CplxFunc which
  * means separate MW function representations for the real and imaginary parts.
  * Note that there are several options for copying/assignment: the proper copy
  * constructor and assignment operator are *shallow* copies, which means that
@@ -46,12 +48,12 @@
 
 namespace mrchem {
 
-class Density final : public QMFunction {
+class Density final : public mrcpp::CplxFunc {
 public:
     explicit Density(bool share)
-            : QMFunction(share) {}
+            : mrcpp::CplxFunc(share) {}
     Density(const Density &dens)
-            : QMFunction(dens) {}
+            : mrcpp::CplxFunc(dens) {}
     Density &operator=(const Density &dens);
 
     void saveDensity(const std::string &file);

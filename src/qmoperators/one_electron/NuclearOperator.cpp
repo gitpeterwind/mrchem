@@ -25,14 +25,12 @@
 
 #include <MRCPP/Printer>
 #include <MRCPP/Timer>
+#include <MRCPP/Parallel>
 
 #include "NuclearOperator.h"
 
 #include "analyticfunctions/NuclearFunction.h"
 #include "chemistry/chemistry_utils.h"
-#include "parallel.h"
-#include "qmfunctions/QMFunction.h"
-#include "qmfunctions/qmfunction_utils.h"
 #include "qmoperators/QMPotential.h"
 #include "utils/print_utils.h"
 
@@ -73,8 +71,8 @@ NuclearOperator::NuclearOperator(const Nuclei &nucs, double proj_prec, double sm
     loc_prec /= pow(vol, 1.0 / 6.0); // norm of 1/r over the box ~ root_6(Volume)
 
     // Project local potential
-    QMFunction V_loc(false);
-    qmfunction::project(V_loc, f_loc, NUMBER::Real, loc_prec);
+    mrcpp::CplxFunc V_loc(false);
+    mrcpp::cplxfunc::project(V_loc, f_loc, NUMBER::Real, loc_prec);
     t_loc.stop();
     mrcpp::print::separator(2, '-');
     print_utils::qmfunction(2, "Local potential", V_loc, t_loc);
@@ -120,8 +118,8 @@ void NuclearOperator::setupLocalPotential(NuclearFunction &f_loc, const Nuclei &
         double c = detail::nuclear_potential_smoothing(smooth_prec, Z);
 
         // All projection must be done on grand master in order to be exact
-        int proj_rank = (mpi::numerically_exact) ? 0 : k % mpi::orb_size;
-        if (mpi::orb_rank == proj_rank) f_loc.push_back(nuc, c);
+        int proj_rank = (mrcpp::mpi::numerically_exact) ? 0 : k % mrcpp::mpi::wrk_size;
+        if (mrcpp::mpi::wrk_rank == proj_rank) f_loc.push_back(nuc, c);
 
         std::stringstream o_row;
         o_row << std::setw(w1) << k;
@@ -134,29 +132,29 @@ void NuclearOperator::setupLocalPotential(NuclearFunction &f_loc, const Nuclei &
     }
 }
 
-void NuclearOperator::allreducePotential(double prec, QMFunction &V_tot, QMFunction &V_loc) const {
+void NuclearOperator::allreducePotential(double prec, mrcpp::CplxFunc &V_tot, mrcpp::CplxFunc &V_loc) const {
     // Add up local contributions into the grand master
-    mpi::reduce_function(prec, V_loc, mpi::comm_orb);
-    if (mpi::grand_master()) {
+    mrcpp::mpi::reduce_function(prec, V_loc, mrcpp::mpi::comm_orb);
+    if (mrcpp::mpi::grand_master()) {
         // If numerically exact the grid is huge at this point
-        if (mpi::numerically_exact) V_loc.crop(prec);
+        if (mrcpp::mpi::numerically_exact) V_loc.crop(prec);
     }
 
     if (not V_tot.hasReal()) V_tot.alloc(NUMBER::Real);
     if (V_tot.isShared()) {
         int tag = 3141;
         // MPI grand master distributes to shared masters
-        mpi::broadcast_function(V_loc, mpi::comm_sh_group);
-        if (mpi::share_master()) {
+        mrcpp::mpi::broadcast_function(V_loc, mrcpp::mpi::comm_sh_group);
+        if (mrcpp::mpi::share_master()) {
             // MPI shared masters copies the function into final memory
             mrcpp::copy_grid(V_tot.real(), V_loc.real());
             mrcpp::copy_func(V_tot.real(), V_loc.real());
         }
         // MPI share masters distributes to their sharing ranks
-        mpi::share_function(V_tot, 0, tag, mpi::comm_share);
+        mrcpp::mpi::share_function(V_tot, 0, tag, mrcpp::mpi::comm_share);
     } else {
         // MPI grand master distributes to all ranks
-        mpi::broadcast_function(V_loc, mpi::comm_orb);
+        mrcpp::mpi::broadcast_function(V_loc, mrcpp::mpi::comm_orb);
         // All MPI ranks copies the function into final memory
         mrcpp::copy_grid(V_tot.real(), V_loc.real());
         mrcpp::copy_func(V_tot.real(), V_loc.real());

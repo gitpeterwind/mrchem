@@ -27,6 +27,7 @@
 
 #include "MRCPP/Printer"
 
+#include "mrchem.h"
 #include "Density.h"
 
 namespace mrchem {
@@ -39,7 +40,7 @@ namespace mrchem {
  * NO transfer of ownership.
  */
 Density &Density::operator=(const Density &dens) {
-    if (this != &dens) QMFunction::operator=(dens);
+    if (this != &dens) mrcpp::CplxFunc::operator=(dens);
     return *this;
 }
 
@@ -57,12 +58,12 @@ void Density::saveDensity(const std::string &file) {
     metafile << file << ".meta";
 
     // this flushes tree sizes
-    FunctionData &func_data = getFunctionData();
+    mrcpp::FunctionData &func_data = mrcpp::CplxFunc::getFunctionData();
 
     std::fstream f;
     f.open(metafile.str(), std::ios::out | std::ios::binary);
     if (not f.is_open()) MSG_ERROR("Unable to open file");
-    f.write((char *)&func_data, sizeof(FunctionData));
+    f.write((char *)&func_data, sizeof(mrcpp::FunctionData));
     f.close();
 
     // writing real part
@@ -97,11 +98,11 @@ void Density::loadDensity(const std::string &file) {
     fmeta << file << ".meta";
 
     // this flushes tree sizes
-    FunctionData &func_data = getFunctionData();
+    mrcpp::FunctionData &func_data = mrcpp::CplxFunc::getFunctionData();
 
     std::fstream f;
     f.open(fmeta.str(), std::ios::in | std::ios::binary);
-    if (f.is_open()) f.read((char *)&func_data, sizeof(FunctionData));
+    if (f.is_open()) f.read((char *)&func_data, sizeof(mrcpp::FunctionData));
     f.close();
 
     // reading real part

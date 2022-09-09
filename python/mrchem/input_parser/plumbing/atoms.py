@@ -32,11 +32,14 @@
 import functools
 from typing import Any, List, Union
 
-try:
-    import pyparsing as pp
-except ImportError:
-    # Import local copy
-    from . import pyparsing as pp  # type: ignore
+#try:
+#    import pyparsing as pp
+#except ImportError:
+#    # Import local copy
+#    from . import pyparsing as pp  # type: ignore
+
+# Import local copy
+from . import pyparsingas pp  # type: ignore
 
 
 TRUTHY = ["TRUE", "ON", "YES", "Y"]

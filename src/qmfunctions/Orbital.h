@@ -25,13 +25,14 @@
 
 #pragma once
 
-#include "QMFunction.h"
+#include "MRCPP/MWFunctions"
+#include "MRCPP/Parallel"
 
 /** @class Orbital
  *
  * @brief General complex-valued function with spin
  *
- * Inherits the general features of a complex function from QMFunction which
+ * Inherits the general features of a complex function from mrcpp::CplxFunc which
  * means separate MW function representations for the real and imaginary parts.
  * Note that there are several options for copying/assignment: the proper copy
  * constructor and assignment operator are *shallow* copies, which means that
@@ -47,42 +48,7 @@
 
 namespace mrchem {
 
-/* POD struct for orbital meta data. Used for simple MPI communication. */
-struct OrbitalData {
-    int rank_id;
-    int spin;
-    int occ;
-};
-
-class Orbital final : public QMFunction {
-public:
-    explicit Orbital();
-    explicit Orbital(int spin, int occ = -1, int rank = -1);
-
-    Orbital(const Orbital &orb);
-    Orbital &operator=(const Orbital &orb);
-    Orbital &operator=(const QMFunction &func);
-    Orbital paramCopy() const;
-    Orbital dagger() const;
-
-    void setOcc(int occ) { this->orb_data.occ = occ; }
-    void setSpin(int spin) { this->orb_data.spin = spin; }
-    void setRankID(int rank) { this->orb_data.rank_id = rank; }
-
-    int occ() const { return this->orb_data.occ; }
-    int spin() const { return this->orb_data.spin; }
-    int rankID() const { return this->orb_data.rank_id; }
-    OrbitalData &getOrbitalData() { return this->orb_data; }
-
-    void saveOrbital(const std::string &file);
-    void loadOrbital(const std::string &file);
-
-    char printSpin() const;
-
-private:
-    OrbitalData orb_data;
-
-    std::ostream &print(std::ostream &o) const;
-};
+using Orbital = mrcpp::CplxFunc;
+using OrbitalVector = mrcpp::MPI_FuncVector;
 
 } // namespace mrchem

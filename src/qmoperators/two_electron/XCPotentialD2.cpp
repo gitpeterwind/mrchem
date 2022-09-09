@@ -30,7 +30,6 @@
 #include "XCPotential.h"
 #include "XCPotentialD2.h"
 #include "qmfunctions/Density.h"
-#include "qmfunctions/Orbital.h"
 #include "qmfunctions/density_utils.h"
 #include "qmfunctions/orbital_utils.h"
 #include "utils/print_utils.h"

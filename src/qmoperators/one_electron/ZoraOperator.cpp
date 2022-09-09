@@ -28,7 +28,6 @@
 #include <MRCPP/Printer>
 #include <MRCPP/Timer>
 
-#include "qmfunctions/qmfunction_utils.h"
 #include "qmoperators/QMPotential.h"
 #include "utils/print_utils.h"
 
@@ -42,7 +41,7 @@ ZoraOperator::ZoraOperator(QMPotential &vz, double c, double proj_prec, bool inv
     double two_cc = 2.0 * c * c;
 
     auto k = std::make_shared<QMPotential>(1);
-    qmfunction::deep_copy(*k, vz);
+    mrcpp::cplxfunc::deep_copy(*k, vz);
 
     if (k->hasImag()) MSG_ERROR("Inverse of complex function");
     if (k->hasReal()) {

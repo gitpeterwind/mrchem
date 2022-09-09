@@ -26,12 +26,12 @@
 #pragma once
 
 #include <memory>
+#include <MRCPP/Parallel>
 
 #include "qmoperators/QMOperator.h"
 
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/qmfunction_fwd.h"
-#include "utils/Bank.h"
 
 namespace mrchem {
 

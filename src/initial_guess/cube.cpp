@@ -27,7 +27,6 @@
 
 #include <fstream>
 
-#include "parallel.h"
 #include <MRCPP/MWFunctions>
 #include <MRCPP/Printer>
 #include <MRCPP/Timer>
@@ -119,7 +118,7 @@ bool initial_guess::cube::project_mo(OrbitalVector &Phi, double prec, const std:
     bool success = true;
     for (int i = 0; i < Phi.size(); i++) {
         Timer t_i;
-        if (mpi::my_orb(Phi[i])) {
+        if (mrcpp::mpi::my_orb(Phi[i])) {
             CUBEfunction phi_i = CUBEVector[i];
             Phi[i].alloc(NUMBER::Real);
             mrcpp::project(prec, Phi[i].real(), phi_i);
@@ -130,7 +129,7 @@ bool initial_guess::cube::project_mo(OrbitalVector &Phi, double prec, const std:
             print_utils::qmfunction(1, o_txt.str(), Phi[i], t_i);
         }
     }
-    mpi::barrier(mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
     mrcpp::print::footer(1, t_tot, 2);
     return success;
 }

@@ -26,8 +26,6 @@
 #include <MRCPP/Printer>
 #include <MRCPP/Timer>
 
-#include "parallel.h"
-
 #include "Accelerator.h"
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
@@ -96,10 +94,10 @@ void Accelerator::rotate(const ComplexMatrix &U, bool all) {
     if (nOrbs <= 0) { return; }
     for (int i = 0; i < nOrbs; i++) {
         auto &Phi = this->orbitals[i];
-        Phi = orbital::rotate(Phi, U);
+        mrcpp::mpifuncvec::rotate(Phi, U);
 
         auto &dPhi = this->dOrbitals[i];
-        dPhi = orbital::rotate(Phi, U);
+        mrcpp::mpifuncvec::rotate(dPhi, U);
     }
     for (int i = 0; i < nFock; i++) {
         auto &F = this->fock[i];
@@ -164,9 +162,9 @@ bool Accelerator::verifyOverlap(OrbitalVector &Phi) {
     if (nHistory > 0) {
         for (int i = 0; i < nOrbs; i++) {
             auto &phi_i = Phi[i];
-            if (mpi::my_orb(phi_i)) {
+            if (mrcpp::mpi::my_orb(phi_i)) {
                 auto &last_i = this->orbitals[nHistory][i];
-                if (not mpi::my_orb(last_i)) MSG_ABORT("MPI rank mismatch");
+                if (not mrcpp::mpi::my_orb(last_i)) MSG_ABORT("MPI rank mismatch");
                 auto sqNorm = phi_i.squaredNorm();
                 auto overlap = orbital::dot(phi_i, last_i);
                 if (std::abs(overlap) < 0.5 * sqNorm) {
@@ -176,7 +174,7 @@ bool Accelerator::verifyOverlap(OrbitalVector &Phi) {
             }
         }
     }
-    mpi::allreduce_vector(out, mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(out, mrcpp::mpi::comm_orb);
 
     return (out.sum() < 1) ? true : false;
 }

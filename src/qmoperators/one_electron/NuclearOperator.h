@@ -37,7 +37,7 @@ public:
 
 private:
     void setupLocalPotential(NuclearFunction &f_loc, const Nuclei &nucs, double smooth_prec) const;
-    void allreducePotential(double prec, QMFunction &V_tot, QMFunction &V_loc) const;
+    void allreducePotential(double prec, mrcpp::CplxFunc &V_tot, mrcpp::CplxFunc &V_loc) const;
 };
 
 } // namespace mrchem

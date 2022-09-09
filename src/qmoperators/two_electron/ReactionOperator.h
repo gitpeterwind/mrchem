@@ -60,13 +60,13 @@ public:
     std::shared_ptr<ReactionPotential> getPotential() { return this->potential; }
     void updateMOResidual(double const err_t) { this->potential->updateMOResidual(err_t); }
 
-    QMFunction &getCurrentReactionPotential() { return this->potential->getCurrentReactionPotential(); }
-    QMFunction &getPreviousReactionPotential() { return this->potential->getPreviousReactionPotential(); }
-    QMFunction &getCurrentDifferenceReactionPotential() { return this->potential->getCurrentDifferenceReactionPotential(); }
+    mrcpp::CplxFunc &getCurrentReactionPotential() { return this->potential->getCurrentReactionPotential(); }
+    mrcpp::CplxFunc &getPreviousReactionPotential() { return this->potential->getPreviousReactionPotential(); }
+    mrcpp::CplxFunc &getCurrentDifferenceReactionPotential() { return this->potential->getCurrentDifferenceReactionPotential(); }
 
-    QMFunction &getCurrentGamma() { return this->potential->getCurrentGamma(); }
-    QMFunction &getPreviousGamma() { return this->potential->getPreviousGamma(); }
-    QMFunction &getCurrentDifferenceGamma() { return this->potential->getCurrentDifferenceGamma(); }
+    mrcpp::CplxFunc &getCurrentGamma() { return this->potential->getCurrentGamma(); }
+    mrcpp::CplxFunc &getPreviousGamma() { return this->potential->getPreviousGamma(); }
+    mrcpp::CplxFunc &getCurrentDifferenceGamma() { return this->potential->getCurrentDifferenceGamma(); }
 
     void setTesting() { this->potential->setTesting(); }
 

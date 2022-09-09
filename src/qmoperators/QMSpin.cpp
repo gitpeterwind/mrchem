@@ -32,7 +32,6 @@
 #include "QMIdentity.h"
 #include "QMPotential.h"
 #include "qmfunctions/Orbital.h"
-#include "qmfunctions/qmfunction_utils.h"
 #include "utils/print_utils.h"
 
 using mrcpp::Printer;
@@ -66,7 +65,7 @@ Orbital QMSpin::apply(Orbital inp) {
     }
 
     Orbital out = inp.paramCopy();
-    qmfunction::deep_copy(out, inp);
+    mrcpp::cplxfunc::deep_copy(out, inp);
     out.rescale(coef);
 
     // Flip spin for s_x and s_y
@@ -107,7 +106,7 @@ Orbital QMAlpha::apply(Orbital inp) {
     if (this->apply_prec < 0.0) MSG_ERROR("Uninitialized operator");
 
     Orbital out(SPIN::Alpha, 1, inp.rankID());
-    if (inp.spin() == SPIN::Alpha || inp.spin() == SPIN::Paired) qmfunction::deep_copy(out, inp);
+    if (inp.spin() == SPIN::Alpha || inp.spin() == SPIN::Paired) mrcpp::cplxfunc::deep_copy(out, inp);
     return out;
 }
 
@@ -116,7 +115,7 @@ Orbital QMAlpha::dagger(Orbital inp) {
     if (this->apply_prec < 0.0) MSG_ERROR("Uninitialized operator");
 
     Orbital out(SPIN::Alpha, 1, inp.rankID());
-    if (inp.spin() == SPIN::Alpha || inp.spin() == SPIN::Paired) qmfunction::deep_copy(out, inp);
+    if (inp.spin() == SPIN::Alpha || inp.spin() == SPIN::Paired) mrcpp::cplxfunc::deep_copy(out, inp);
     return out;
 }
 
@@ -147,7 +146,7 @@ Orbital QMBeta::apply(Orbital inp) {
     if (this->apply_prec < 0.0) MSG_ERROR("Uninitialized operator");
 
     Orbital out(SPIN::Beta, 1, inp.rankID());
-    if (inp.spin() == SPIN::Beta || inp.spin() == SPIN::Paired) qmfunction::deep_copy(out, inp);
+    if (inp.spin() == SPIN::Beta || inp.spin() == SPIN::Paired) mrcpp::cplxfunc::deep_copy(out, inp);
     return out;
 }
 
@@ -156,7 +155,7 @@ Orbital QMBeta::dagger(Orbital inp) {
     if (this->apply_prec < 0.0) MSG_ERROR("Uninitialized operator");
 
     Orbital out(SPIN::Beta, 1, inp.rankID());
-    if (inp.spin() == SPIN::Beta || inp.spin() == SPIN::Paired) qmfunction::deep_copy(out, inp);
+    if (inp.spin() == SPIN::Beta || inp.spin() == SPIN::Paired) mrcpp::cplxfunc::deep_copy(out, inp);
     return out;
 }
 

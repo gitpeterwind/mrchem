@@ -31,17 +31,17 @@
 namespace mrchem {
 namespace qmfunction {
 
-ComplexDouble dot(QMFunction bra, QMFunction ket);
-ComplexDouble node_norm_dot(QMFunction bra, QMFunction ket, bool exact);
-void deep_copy(QMFunction &out, QMFunction &inp);
-void add(QMFunction &out, ComplexDouble a, QMFunction inp_a, ComplexDouble b, QMFunction inp_b, double prec);
-void project(QMFunction &out, std::function<double(const mrcpp::Coord<3> &r)> f, int type, double prec);
-void project(QMFunction &out, mrcpp::RepresentableFunction<3> &f, int type, double prec);
-void project(QMFunction &out, mrcpp::GaussExp<3> &f, int type, double prec);
-void multiply(QMFunction &out, QMFunction inp_a, QMFunction inp_b, double prec, bool absPrec = false, bool useMaxNorms = false);
-void multiply_real(QMFunction &out, QMFunction inp_a, QMFunction inp_b, double prec, bool absPrec = false, bool useMaxNorms = false);
-void multiply_imag(QMFunction &out, QMFunction inp_a, QMFunction inp_b, double prec, bool absPrec = false, bool useMaxNorms = false);
-void linear_combination(QMFunction &out, const ComplexVector &c, QMFunctionVector &inp, double prec);
+ComplexDouble dot(mrcpp::CplxFunc bra, mrcpp::CplxFunc ket);
+ComplexDouble node_norm_dot(mrcpp::CplxFunc bra, mrcpp::CplxFunc ket, bool exact);
+void deep_copy(mrcpp::CplxFunc &out, mrcpp::CplxFunc &inp);
+void add(mrcpp::CplxFunc &out, ComplexDouble a, mrcpp::CplxFunc inp_a, ComplexDouble b, mrcpp::CplxFunc inp_b, double prec);
+void project(mrcpp::CplxFunc &out, std::function<double(const mrcpp::Coord<3> &r)> f, int type, double prec);
+void project(mrcpp::CplxFunc &out, mrcpp::RepresentableFunction<3> &f, int type, double prec);
+void project(mrcpp::CplxFunc &out, mrcpp::GaussExp<3> &f, int type, double prec);
+void multiply(mrcpp::CplxFunc &out, mrcpp::CplxFunc inp_a, mrcpp::CplxFunc inp_b, double prec, bool absPrec = false, bool useMaxNorms = false);
+void multiply_real(mrcpp::CplxFunc &out, mrcpp::CplxFunc inp_a, mrcpp::CplxFunc inp_b, double prec, bool absPrec = false, bool useMaxNorms = false);
+void multiply_imag(mrcpp::CplxFunc &out, mrcpp::CplxFunc inp_a, mrcpp::CplxFunc inp_b, double prec, bool absPrec = false, bool useMaxNorms = false);
+void linear_combination(mrcpp::CplxFunc &out, const ComplexVector &c, mrcpp::CplxFuncVector &inp, double prec);
 
 } // namespace qmfunction
 } // namespace mrchem

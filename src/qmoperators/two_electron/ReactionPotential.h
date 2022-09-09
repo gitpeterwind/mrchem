@@ -56,13 +56,13 @@ public:
      * the dynamic convergence method. */
     void updateMOResidual(double const err_t) { this->helper->mo_residual = err_t; }
 
-    QMFunction &getCurrentReactionPotential() { return this->helper->getCurrentReactionPotential(); }
-    QMFunction &getPreviousReactionPotential() { return this->helper->getPreviousReactionPotential(); }
-    QMFunction &getCurrentDifferenceReactionPotential() { return this->helper->getCurrentDifferenceReactionPotential(); }
+    mrcpp::CplxFunc &getCurrentReactionPotential() { return this->helper->getCurrentReactionPotential(); }
+    mrcpp::CplxFunc &getPreviousReactionPotential() { return this->helper->getPreviousReactionPotential(); }
+    mrcpp::CplxFunc &getCurrentDifferenceReactionPotential() { return this->helper->getCurrentDifferenceReactionPotential(); }
 
-    QMFunction &getCurrentGamma() { return this->helper->getCurrentGamma(); }
-    QMFunction &getPreviousGamma() { return this->helper->getPreviousGamma(); }
-    QMFunction &getCurrentDifferenceGamma() { return this->helper->getCurrentDifferenceGamma(); }
+    mrcpp::CplxFunc &getCurrentGamma() { return this->helper->getCurrentGamma(); }
+    mrcpp::CplxFunc &getPreviousGamma() { return this->helper->getPreviousGamma(); }
+    mrcpp::CplxFunc &getCurrentDifferenceGamma() { return this->helper->getCurrentDifferenceGamma(); }
 
     /** @brief changes the #first_iteration variable to false. This is done in tests where we want the ReactionPotential
      * to be calculated at the zero-th iteration in the SCF cycle instead of not doing it, as is the deafult.*/

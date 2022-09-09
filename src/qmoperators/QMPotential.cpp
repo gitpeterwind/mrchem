@@ -32,7 +32,6 @@
 #include "QMIdentity.h"
 #include "QMSpin.h"
 #include "qmfunctions/Orbital.h"
-#include "qmfunctions/qmfunction_utils.h"
 #include "utils/print_utils.h"
 
 using mrcpp::FunctionTree;
@@ -48,19 +47,19 @@ namespace mrchem {
  *
  * @param adap: extra refinement in output
  *
- * Initializes the QMFunction with NULL pointers for both real and imaginary part.
+ * Initializes the mrcpp::CplxFunc with NULL pointers for both real and imaginary part.
  * These must be computed in setup() of derived classes. The initial output grid
  * in application will be a copy of the input orbital but NOT a copy of the
  * potential grid. The argument sets how many extra refinement levels is allowed
  * beyond this initial refinement.
  */
 QMPotential::QMPotential(int adap, bool shared)
-        : QMFunction(shared)
+        : mrcpp::CplxFunc(shared)
         , QMOperator()
         , adap_build(adap) {}
 
 QMPotential::QMPotential(const QMPotential &inp)
-        : QMFunction(inp.isShared())
+        : mrcpp::CplxFunc(inp.isShared())
         , QMOperator()
         , adap_build(inp.adap_build) {}
 
@@ -106,7 +105,7 @@ QMOperatorVector QMPotential::apply(QMOperator_p &O) {
     if (I) {
         // O == identity: skip it
         auto V_out = std::make_shared<QMPotential>(*this);
-        qmfunction::deep_copy(*V_out, *this);
+        mrcpp::cplxfunc::deep_copy(*V_out, *this);
         out.push_back(V_out);
     } else if (V_inp) {
         // O == potential: merge into single potential
@@ -117,7 +116,7 @@ QMOperatorVector QMPotential::apply(QMOperator_p &O) {
     } else {
         // fallback: treat as individual operators
         auto V_out = std::make_shared<QMPotential>(*this);
-        qmfunction::deep_copy(*V_out, *this);
+        mrcpp::cplxfunc::deep_copy(*V_out, *this);
         out.push_back(O);
         out.push_back(V_out);
     }
@@ -132,17 +131,17 @@ QMOperatorVector QMPotential::apply(QMOperator_p &O) {
  * Computes the real part of the output orbital. The initial output grid is a
  * copy of the input orbital grid but NOT a copy of the potential grid.
  */
-void QMPotential::calcRealPart(QMFunction &out, QMFunction &inp, bool dagger) {
+void QMPotential::calcRealPart(mrcpp::CplxFunc &out, mrcpp::CplxFunc &inp, bool dagger) {
     int adap = this->adap_build;
     double prec = this->apply_prec;
 
     if (out.hasReal()) MSG_ABORT("Output not empty");
     if (out.isShared()) MSG_ABORT("Cannot share this function");
 
-    QMFunction &V = *this;
+    mrcpp::CplxFunc &V = *this;
     if (V.hasReal() and inp.hasReal()) {
         double coef = 1.0;
-        QMFunction tmp(false);
+        mrcpp::CplxFunc tmp(false);
         tmp.alloc(NUMBER::Real);
         mrcpp::copy_grid(tmp.real(), inp.real());
         mrcpp::multiply(prec, tmp.real(), coef, V.real(), inp.real(), adap);
@@ -152,7 +151,7 @@ void QMPotential::calcRealPart(QMFunction &out, QMFunction &inp, bool dagger) {
         double coef = -1.0;
         if (dagger) coef *= -1.0;
         if (inp.conjugate()) coef *= -1.0;
-        QMFunction tmp(false);
+        mrcpp::CplxFunc tmp(false);
         tmp.alloc(NUMBER::Real);
         mrcpp::copy_grid(tmp.real(), inp.imag());
         mrcpp::multiply(prec, tmp.real(), coef, V.imag(), inp.imag(), adap);
@@ -168,18 +167,18 @@ void QMPotential::calcRealPart(QMFunction &out, QMFunction &inp, bool dagger) {
  * Computes the imaginary part of the output orbital. The initial output grid is a
  * copy of the input orbital grid but NOT a copy of the potential grid.
  */
-void QMPotential::calcImagPart(QMFunction &out, QMFunction &inp, bool dagger) {
+void QMPotential::calcImagPart(mrcpp::CplxFunc &out, mrcpp::CplxFunc &inp, bool dagger) {
     int adap = this->adap_build;
     double prec = this->apply_prec;
 
     if (out.hasImag()) MSG_ABORT("Output not empty");
     if (out.isShared()) MSG_ABORT("Cannot share this function");
 
-    QMFunction &V = *this;
+    mrcpp::CplxFunc &V = *this;
     if (V.hasReal() and inp.hasImag()) {
         double coef = 1.0;
         if (inp.conjugate()) coef *= -1.0;
-        QMFunction tmp(false);
+        mrcpp::CplxFunc tmp(false);
         tmp.alloc(NUMBER::Imag);
         mrcpp::copy_grid(tmp.imag(), inp.imag());
         mrcpp::multiply(prec, tmp.imag(), coef, V.real(), inp.imag(), adap);
@@ -188,7 +187,7 @@ void QMPotential::calcImagPart(QMFunction &out, QMFunction &inp, bool dagger) {
     if (V.hasImag() and inp.hasReal()) {
         double coef = 1.0;
         if (dagger) coef *= -1.0;
-        QMFunction tmp(false);
+        mrcpp::CplxFunc tmp(false);
         tmp.alloc(NUMBER::Imag);
         mrcpp::copy_grid(tmp.imag(), inp.real());
         mrcpp::multiply(prec, tmp.imag(), coef, V.imag(), inp.real(), adap);

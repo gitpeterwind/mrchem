@@ -34,8 +34,6 @@
 
 #include "print_utils.h"
 
-#include "qmfunctions/QMFunction.h"
-
 using mrcpp::Printer;
 using mrcpp::Timer;
 
@@ -245,7 +243,7 @@ void print_utils::matrix(int level, const std::string &txt, const DoubleMatrix &
     printout(level, o.str());
 }
 
-void print_utils::qmfunction(int level, const std::string &txt, const QMFunction &func, mrcpp::Timer &timer) {
+void print_utils::qmfunction(int level, const std::string &txt, const mrcpp::CplxFunc &func, mrcpp::Timer &timer) {
     auto nodes = func.getNNodes(NUMBER::Total);
     auto memory = func.getSizeNodes(NUMBER::Total);
     auto time = timer.elapsed();

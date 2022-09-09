@@ -26,12 +26,10 @@
 #include "catch.hpp"
 
 #include "mrchem.h"
-#include "parallel.h"
 
 #include "analyticfunctions/HarmonicOscillatorFunction.h"
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
-#include "qmfunctions/qmfunction_utils.h"
 #include "qmoperators/one_electron/PositionOperator.h"
 
 using namespace mrchem;
@@ -46,12 +44,12 @@ TEST_CASE("PositionOperator", "[position_operator]") {
     int nFuncs = 3;
     OrbitalVector Phi;
     for (int n = 0; n < nFuncs; n++) Phi.push_back(Orbital(SPIN::Paired));
-    mpi::distribute(Phi);
+    Phi.distribute();
 
     for (int n = 0; n < nFuncs; n++) {
         int nu[3] = {n, 0, 0};
         HarmonicOscillatorFunction f(nu);
-        if (mpi::my_orb(Phi[n])) qmfunction::project(Phi[n], f, NUMBER::Real, prec);
+        if (mrcpp::mpi::my_orb(Phi[n])) mrcpp::cplxfunc::project(Phi[n], f, NUMBER::Real, prec);
     }
 
     // reference values for harmonic oscillator eigenfunctions

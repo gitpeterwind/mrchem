@@ -32,7 +32,6 @@
 #include <vector>
 
 #include "mrchem.h"
-#include "parallel.h"
 
 #include "environment/Cavity.h"
 

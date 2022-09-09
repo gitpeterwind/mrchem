@@ -225,7 +225,6 @@ void driver::init_properties(const json &json_prop, Molecule &mol) {
 json driver::scf::run(const json &json_scf, Molecule &mol) {
     // print_utils::headline(0, "Computing Ground State Wavefunction");
     json json_out = {{"success", true}};
-
     if (json_scf.contains("properties")) driver::init_properties(json_scf["properties"], mol);
 
     ///////////////////////////////////////////////////////////
@@ -245,7 +244,7 @@ json driver::scf::run(const json &json_scf, Molecule &mol) {
     const auto &json_guess = json_scf["initial_guess"];
     if (scf::guess_orbitals(json_guess, mol)) {
         scf::guess_energy(json_guess, mol, F);
-        json_out["initial_energy"] = mol.getSCFEnergy().json();
+       json_out["initial_energy"] = mol.getSCFEnergy().json();
     } else {
         json_out["success"] = false;
         return json_out;
@@ -359,7 +358,7 @@ bool driver::scf::guess_orbitals(const json &json_guess, Molecule &mol) {
     for (auto p = 0; p < Np; p++) Phi.push_back(Orbital(SPIN::Paired));
     for (auto a = 0; a < Na; a++) Phi.push_back(Orbital(SPIN::Alpha));
     for (auto b = 0; b < Nb; b++) Phi.push_back(Orbital(SPIN::Beta));
-    mpi::distribute(Phi);
+    Phi.distribute();
 
     auto success = true;
     if (type == "chk") {
@@ -381,7 +380,7 @@ bool driver::scf::guess_orbitals(const json &json_guess, Molecule &mol) {
         success = false;
     }
     for (const auto &phi_i : Phi) {
-        double err = (mpi::my_orb(phi_i)) ? std::abs(phi_i.norm() - 1.0) : 0.0;
+        double err = (mrcpp::mpi::my_orb(phi_i)) ? std::abs(phi_i.norm() - 1.0) : 0.0;
         if (err > 0.01) MSG_WARN("MO not normalized!");
     }
 
@@ -410,11 +409,11 @@ bool driver::scf::guess_energy(const json &json_guess, Molecule &mol, FockBuilde
     auto &Phi = mol.getOrbitals();
     auto &nucs = mol.getNuclei();
     auto &F_mat = mol.getFockMatrix();
+    Phi.distribute();
     F_mat = ComplexMatrix::Zero(Phi.size(), Phi.size());
     if (localize) orbital::localize(prec, Phi, F_mat);
 
     F.setup(prec);
-
     F_mat = F(Phi, Phi);
     mol.getSCFEnergy() = F.trace(Phi, nucs);
     F.clear();
@@ -429,7 +428,6 @@ bool driver::scf::guess_energy(const json &json_guess, Molecule &mol, FockBuilde
     eps.getEpsilon() = orbital::calc_eigenvalues(Phi, F_mat);
     eps.getSpin() = orbital::get_spins(Phi);
     mrcpp::print::footer(1, t_eps, 2);
-
     mol.printEnergies("initial");
     return true;
 }
@@ -647,7 +645,7 @@ void driver::scf::plot_quantities(const json &json_plot, Molecule &mol) {
         if (orb_idx[0] < 0) {
             // Plotting ALL orbitals
             for (auto i = 0; i < Phi.size(); i++) {
-                if (not mpi::my_orb(Phi[i])) continue;
+                if (not mrcpp::mpi::my_orb(Phi[i])) continue;
                 t_lap.start();
                 std::stringstream name;
                 name << path << "/phi_" << Phi[i].printSpin() << "_scf_idx_" << i;
@@ -659,7 +657,7 @@ void driver::scf::plot_quantities(const json &json_plot, Molecule &mol) {
         } else {
             // Plotting some orbitals
             for (auto &i : orb_idx) {
-                if (not mpi::my_orb(Phi[i])) continue;
+                if (not mrcpp::mpi::my_orb(Phi[i])) continue;
                 t_lap.start();
                 std::stringstream name;
                 auto sp = 'u';
@@ -801,7 +799,7 @@ json driver::rsp::run(const json &json_rsp, Molecule &mol) {
         json_out["components"].push_back(comp_out);
     }
     F_0.clear();
-    mpi::barrier(mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
     mol.getOrbitalsX_p().reset(); // Release shared_ptr
     mol.getOrbitalsY_p().reset(); // Release shared_ptr
 
@@ -982,7 +980,7 @@ void driver::build_fock_operator(const json &json_fock, Molecule &mol, FockBuild
     //////////////////   Nuclear Operator   ///////////////////
     ///////////////////////////////////////////////////////////
     if (json_fock.contains("nuclear_operator")) {
-        auto proj_prec = json_fock["nuclear_operator"]["proj_prec"];
+         auto proj_prec = json_fock["nuclear_operator"]["proj_prec"];
         auto smooth_prec = json_fock["nuclear_operator"]["smooth_prec"];
         auto shared_memory = json_fock["nuclear_operator"]["shared_memory"];
         auto V_p = std::make_shared<NuclearOperator>(nuclei, proj_prec, smooth_prec, shared_memory);
@@ -1016,7 +1014,7 @@ void driver::build_fock_operator(const json &json_fock, Molecule &mol, FockBuild
         } else {
             MSG_ABORT("Invalid perturbation order");
         }
-    }
+  }
     ///////////////////////////////////////////////////////////
     //////////////////   Reaction Operator   ///////////////////
     ///////////////////////////////////////////////////////////

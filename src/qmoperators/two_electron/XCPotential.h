@@ -26,6 +26,7 @@
 #pragma once
 
 #include "qmoperators/QMPotential.h"
+#include "qmfunctions/Density.h"
 
 #include "mrdft/MRDFT.h"
 

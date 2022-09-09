@@ -28,7 +28,6 @@
 
 #include "XCPotential.h"
 #include "XCPotentialD1.h"
-#include "parallel.h"
 #include "qmfunctions/Density.h"
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/density_utils.h"

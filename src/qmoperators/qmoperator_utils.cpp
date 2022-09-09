@@ -30,7 +30,6 @@
 
 #include "qmfunctions/Orbital.h"
 #include "qmfunctions/orbital_utils.h"
-#include "qmfunctions/qmfunction_utils.h"
 #include "qmoperators/QMPotential.h"
 #include "qmoperators/one_electron/MomentumOperator.h"
 

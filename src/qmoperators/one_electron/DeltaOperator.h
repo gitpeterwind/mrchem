@@ -31,7 +31,6 @@
 
 #include "chemistry/PhysicalConstants.h"
 
-#include "qmfunctions/qmfunction_utils.h"
 #include "qmoperators/QMPotential.h"
 
 namespace mrchem {
@@ -54,7 +53,7 @@ public:
 
         // Project analytic potential
         auto delta = std::make_shared<QMPotential>(1);
-        qmfunction::project(*delta, f, NUMBER::Real, proj_prec);
+        mrcpp::cplxfunc::project(*delta, f, NUMBER::Real, proj_prec);
 
         // Invoke operator= to assign *this operator
         RankZeroOperator &h = (*this);
