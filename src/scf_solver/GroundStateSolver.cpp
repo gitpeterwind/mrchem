@@ -341,7 +341,7 @@ json GroundStateSolver::optimize(Molecule &mol, FockBuilder &F) {
     }
 
     F.clear();
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
 
     printConvergence(converged, "Total energy");
     reset();

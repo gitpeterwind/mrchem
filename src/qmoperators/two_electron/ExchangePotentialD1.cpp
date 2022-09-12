@@ -56,12 +56,12 @@ ExchangePotentialD1::ExchangePotentialD1(PoissonOperator_p P, OrbitalVector_p Ph
 void ExchangePotentialD1::setupBank() {
     if (mrcpp::mpi::bank_size < 1) return;
     Timer timer;
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     OrbitalVector &Phi = *this->orbitals;
     for (int i = 0; i < Phi.size(); i++) {
         if (mrcpp::mpi::my_orb(i)) PhiBank.put_func(i, Phi[i]);
     }
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     mrcpp::print::time(3, "Setting up exchange bank", timer);
 }
 
@@ -338,7 +338,7 @@ void ExchangePotentialD1::setupInternal(double prec) {
 
     // wait until all exchanges pieces are computed and stored in Bank
     t_wait.resume();
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     t_wait.stop();
 
     for (int j = 0; j < N; j++) {

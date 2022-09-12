@@ -289,7 +289,7 @@ void SCFSolver::printConvergence(bool converged, const std::string &txt) const {
 void SCFSolver::printMemory() const {
     DoubleVector mem_vec = DoubleVector::Zero(mrcpp::mpi::wrk_size);
     mem_vec(mrcpp::mpi::wrk_rank) = static_cast<double>(mrcpp::details::get_memory_usage());
-    mrcpp::mpi::allreduce_vector(mem_vec, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(mem_vec, mrcpp::mpi::comm_wrk);
 
     std::string mem_unit = "(kB)";
     if (mem_vec.maxCoeff() > 512.0) {

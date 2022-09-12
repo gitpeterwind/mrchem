@@ -168,7 +168,7 @@ void CoulombPotential::allreducePotential(double prec, mrcpp::CplxFunc &V_loc) {
     double abs_prec = prec / orbital::get_electron_number(Phi);
 
     // Add up local contributions into the grand master
-    mrcpp::mpi::reduce_function(abs_prec, V_loc, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::reduce_function(abs_prec, V_loc, mrcpp::mpi::comm_wrk);
 
     if (not V_tot.hasReal()) V_tot.alloc(NUMBER::Real);
     if (V_tot.isShared()) {
@@ -184,7 +184,7 @@ void CoulombPotential::allreducePotential(double prec, mrcpp::CplxFunc &V_loc) {
         mrcpp::mpi::share_function(V_tot, 0, tag, mrcpp::mpi::comm_share);
     } else {
         // MPI grand master distributes to all ranks
-        mrcpp::mpi::broadcast_function(V_loc, mrcpp::mpi::comm_orb);
+        mrcpp::mpi::broadcast_function(V_loc, mrcpp::mpi::comm_wrk);
         // All MPI ranks copies the function into final memory
         mrcpp::copy_grid(V_tot.real(), V_loc.real());
         mrcpp::copy_func(V_tot.real(), V_loc.real());

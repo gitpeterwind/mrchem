@@ -60,7 +60,7 @@ void ExchangePotentialD2::setupBank() {
     if (mrcpp::mpi::bank_size < 1) return;
 
     Timer timer;
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     OrbitalVector &Phi = *this->orbitals;
     for (int i = 0; i < Phi.size(); i++) {
         if (mrcpp::mpi::my_orb(Phi[i])) PhiBank.put_func(i, Phi[i]);
@@ -73,7 +73,7 @@ void ExchangePotentialD2::setupBank() {
     for (int i = 0; i < Y.size(); i++) {
         if (mrcpp::mpi::my_orb(Y[i])) YBank.put_func(i, Y[i]);
     }
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     mrcpp::print::time(3, "Setting up exchange bank", timer);
 }
 

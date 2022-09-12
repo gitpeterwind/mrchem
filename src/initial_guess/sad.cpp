@@ -276,7 +276,7 @@ void initial_guess::sad::project_atomic_densities(double prec, Density &rho_tot,
     }
     t_loc.stop();
     Timer t_com;
-    mrcpp::mpi::allreduce_vector(charges, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(charges, mrcpp::mpi::comm_wrk);
     density::allreduce_density(prec, rho_tot, rho_loc);
     t_com.stop();
 

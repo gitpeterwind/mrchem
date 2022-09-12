@@ -799,7 +799,7 @@ json driver::rsp::run(const json &json_rsp, Molecule &mol) {
         json_out["components"].push_back(comp_out);
     }
     F_0.clear();
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     mol.getOrbitalsX_p().reset(); // Release shared_ptr
     mol.getOrbitalsY_p().reset(); // Release shared_ptr
 

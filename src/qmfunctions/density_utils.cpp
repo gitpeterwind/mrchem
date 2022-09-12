@@ -246,7 +246,7 @@ void density::allreduce_density(double prec, Density &rho_tot, Density &rho_loc)
     // crop the resulting density tree to the desired precision
     double part_prec = (mrcpp::mpi::numerically_exact) ? -1.0 : prec;
     // Add up local contributions into the grand master
-    mrcpp::mpi::reduce_function(part_prec, rho_loc, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::reduce_function(part_prec, rho_loc, mrcpp::mpi::comm_wrk);
     if (mrcpp::mpi::grand_master()) {
         // If numerically exact the grid is huge at this point
         if (mrcpp::mpi::numerically_exact) rho_loc.crop(prec);
@@ -267,7 +267,7 @@ void density::allreduce_density(double prec, Density &rho_tot, Density &rho_loc)
         mrcpp::mpi::share_function(rho_tot, 0, tag, mrcpp::mpi::comm_share);
     } else {
         // MPI grand master distributes to all ranks
-        mrcpp::mpi::broadcast_function(rho_loc, mrcpp::mpi::comm_orb);
+        mrcpp::mpi::broadcast_function(rho_loc, mrcpp::mpi::comm_wrk);
        // All MPI ranks copies the function into final memory
         mrcpp::copy_grid(rho_tot.real(), rho_loc.real());
         mrcpp::copy_func(rho_tot.real(), rho_loc.real());

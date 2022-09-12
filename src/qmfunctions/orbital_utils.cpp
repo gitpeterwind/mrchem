@@ -100,13 +100,13 @@ ComplexVector orbital::dot(OrbitalVector &Bra, OrbitalVector &Ket) {
             int tag = 8765 + i;
             int src = (Bra[i].rankID()) % mrcpp::mpi::wrk_size;
             int dst = (Ket[i].rankID()) % mrcpp::mpi::wrk_size;
-            if (mrcpp::mpi::my_orb(Bra[i])) mrcpp::mpi::send_function(Bra[i], dst, tag, mrcpp::mpi::comm_orb);
-            if (mrcpp::mpi::my_orb(Ket[i])) mrcpp::mpi::recv_function(Bra[i], src, tag, mrcpp::mpi::comm_orb);
+            if (mrcpp::mpi::my_orb(Bra[i])) mrcpp::mpi::send_function(Bra[i], dst, tag, mrcpp::mpi::comm_wrk);
+            if (mrcpp::mpi::my_orb(Ket[i])) mrcpp::mpi::recv_function(Bra[i], src, tag, mrcpp::mpi::comm_wrk);
         }
         result[i] = orbital::dot(Bra[i], Ket[i]);
         if (not mrcpp::mpi::my_orb(Bra[i])) Bra[i].free(NUMBER::Total);
     }
-    mrcpp::mpi::allreduce_vector(result, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(result, mrcpp::mpi::comm_wrk);
     return result;
 }
 
@@ -466,11 +466,11 @@ void orbital::orthogonalize(double prec, OrbitalVector &Phi) {
                 orbital::orthogonalize(prec / Phi.size(), Phi[i], Phi[j]);
             } else {
                 if (mrcpp::mpi::my_orb(Phi[i])) {
-                    mrcpp::mpi::recv_function(Phi[j], src, tag, mrcpp::mpi::comm_orb);
+                    mrcpp::mpi::recv_function(Phi[j], src, tag, mrcpp::mpi::comm_wrk);
                     orbital::orthogonalize(prec / Phi.size(), Phi[i], Phi[j]);
                     Phi[j].free(NUMBER::Total);
                 }
-                if (mrcpp::mpi::my_orb(Phi[j])) mrcpp::mpi::send_function(Phi[j], dst, tag, mrcpp::mpi::comm_orb);
+                if (mrcpp::mpi::my_orb(Phi[j])) mrcpp::mpi::send_function(Phi[j], dst, tag, mrcpp::mpi::comm_wrk);
             }
         }
     }
@@ -523,7 +523,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
 
     // 1) make union tree without coefficients
     mrcpp::FunctionTree<3> refTree(*MRA);
-    mrcpp::mpi::allreduce_Tree_noCoeff(refTree, BraKet, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_Tree_noCoeff(refTree, BraKet, mrcpp::mpi::comm_wrk);
 
     int sizecoeff = (1 << refTree.getDim()) * refTree.getKp1_d();
     int sizecoeffW = ((1 << refTree.getDim()) - 1) * refTree.getKp1_d();
@@ -579,7 +579,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
     } else { // MPI case
         // 2) send own nodes to bank, identifying them through the serialIx of refTree
         save_nodes(BraKet, refTree, nodesBraKet);
-        mrcpp::mpi::barrier(mrcpp::mpi::comm_orb); // wait until everything is stored before fetching!
+        mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk); // wait until everything is stored before fetching!
     }
 
     // 3) make dot product for all the nodes and accumulate into S
@@ -645,7 +645,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
         if (!mrcpp::mpi::my_orb(BraKet[i])) continue;
         conjMat[i] = (BraKet[i].conjugate()) ? -1 : 1;
     }
-    mrcpp::mpi::allreduce_vector(conjMat, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(conjMat, mrcpp::mpi::comm_wrk);
 
     for (int i = 0; i < N; i++) {
         for (int j = 0; j <= i; j++) {
@@ -656,7 +656,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &BraKet) {
     }
 
     // Assumes linearity: result is sum of all nodes contributions
-    mrcpp::mpi::allreduce_matrix(S, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_matrix(S, mrcpp::mpi::comm_wrk);
     return S;
 }
 
@@ -673,7 +673,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
 
     // 1) make union tree without coefficients for Bra (supposed smallest)
     mrcpp::FunctionTree<3> refTree(*MRA);
-    mrcpp::mpi::allreduce_Tree_noCoeff(refTree, Bra, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_Tree_noCoeff(refTree, Bra, mrcpp::mpi::comm_wrk);
     // note that Ket is not part of union grid: if a node is in ket but not in Bra, the dot product is zero.
 
     int sizecoeff = (1 << refTree.getDim()) * refTree.getKp1_d();
@@ -763,7 +763,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
         // 2) send own nodes to bank, identifying them through the serialIx of refTree
         save_nodes(Bra, refTree, nodesBra);
         save_nodes(Ket, refTree, nodesKet);
-        mrcpp::mpi::barrier(mrcpp::mpi::comm_orb); // wait until everything is stored before fetching!
+        mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk); // wait until everything is stored before fetching!
     }
 
     // 3) make dot product for all the nodes and accumulate into S
@@ -840,13 +840,13 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
         if (!mrcpp::mpi::my_orb(Bra[i])) continue;
         conjMatBra[i] = (Bra[i].conjugate()) ? -1 : 1;
     }
-    mrcpp::mpi::allreduce_vector(conjMatBra, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(conjMatBra, mrcpp::mpi::comm_wrk);
     IntVector conjMatKet = IntVector::Zero(M);
     for (int i = 0; i < M; i++) {
         if (!mrcpp::mpi::my_orb(Ket[i])) continue;
         conjMatKet[i] = (Ket[i].conjugate()) ? -1 : 1;
     }
-    mrcpp::mpi::allreduce_vector(conjMatKet, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(conjMatKet, mrcpp::mpi::comm_wrk);
 
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < M; j++) {
@@ -857,7 +857,7 @@ ComplexMatrix orbital::calc_overlap_matrix(OrbitalVector &Bra, OrbitalVector &Ke
 
     // 4) collect results from all MPI. Linearity: result is sum of all node contributions
 
-    mrcpp::mpi::allreduce_matrix(S, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_matrix(S, mrcpp::mpi::comm_wrk);
 
     return S;
 }
@@ -872,7 +872,7 @@ DoubleMatrix orbital::calc_norm_overlap_matrix(OrbitalVector &BraKet) {
 
     // 1) make union tree without coefficients
     mrcpp::FunctionTree<3> refTree(*MRA);
-    mrcpp::mpi::allreduce_Tree_noCoeff(refTree, BraKet, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_Tree_noCoeff(refTree, BraKet, mrcpp::mpi::comm_wrk);
 
     int sizecoeff = (1 << refTree.getDim()) * refTree.getKp1_d();
     int sizecoeffW = ((1 << refTree.getDim()) - 1) * refTree.getKp1_d();
@@ -928,7 +928,7 @@ DoubleMatrix orbital::calc_norm_overlap_matrix(OrbitalVector &BraKet) {
     } else { // MPI case
         // 2) send own nodes to bank, identifying them through the serialIx of refTree
         save_nodes(BraKet, refTree, nodesBraKet);
-        mrcpp::mpi::barrier(mrcpp::mpi::comm_orb); // wait until everything is stored before fetching!
+        mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk); // wait until everything is stored before fetching!
     }
 
     // 3) make dot product for all the nodes and accumulate into S
@@ -995,7 +995,7 @@ DoubleMatrix orbital::calc_norm_overlap_matrix(OrbitalVector &BraKet) {
         if (!mrcpp::mpi::my_orb(BraKet[i])) continue;
         conjMat[i] = (BraKet[i].conjugate()) ? -1 : 1;
     }
-    mrcpp::mpi::allreduce_vector(conjMat, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(conjMat, mrcpp::mpi::comm_wrk);
 
     for (int i = 0; i < N; i++) {
         for (int j = 0; j <= i; j++) {
@@ -1005,7 +1005,7 @@ DoubleMatrix orbital::calc_norm_overlap_matrix(OrbitalVector &BraKet) {
     }
 
     // Assumes linearity: result is sum of all nodes contributions
-    mrcpp::mpi::allreduce_matrix(S, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_matrix(S, mrcpp::mpi::comm_wrk);
 
     return S;
 }
@@ -1320,7 +1320,7 @@ DoubleVector orbital::get_squared_norms(const OrbitalVector &Phi) {
     for (int i = 0; i < nOrbs; i++) {
         if (mrcpp::mpi::my_orb(Phi[i])) norms(i) = Phi[i].squaredNorm();
     }
-    mrcpp::mpi::allreduce_vector(norms, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(norms, mrcpp::mpi::comm_wrk);
     return norms;
 }
 
@@ -1331,7 +1331,7 @@ DoubleVector orbital::get_norms(const OrbitalVector &Phi) {
     for (int i = 0; i < nOrbs; i++) {
         if (mrcpp::mpi::my_orb(Phi[i])) norms(i) = Phi[i].norm();
     }
-    mrcpp::mpi::allreduce_vector(norms, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(norms, mrcpp::mpi::comm_wrk);
     return norms;
 }
 
@@ -1342,7 +1342,7 @@ ComplexVector orbital::get_integrals(const OrbitalVector &Phi) {
     for (int i = 0; i < nOrbs; i++) {
         if (mrcpp::mpi::my_orb(Phi[i])) ints(i) = Phi[i].integrate();
     }
-    mrcpp::mpi::allreduce_vector(ints, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(ints, mrcpp::mpi::comm_wrk);
     return ints;
 }
 
@@ -1494,7 +1494,7 @@ int orbital::print_size_nodes(const OrbitalVector &Phi, const std::string &txt, 
     vecStats(4, mrcpp::mpi::wrk_rank) = mrcpp::details::get_memory_usage();
 
     if (all) {
-        mrcpp::mpi::allreduce_matrix(vecStats, mrcpp::mpi::comm_orb);
+        mrcpp::mpi::allreduce_matrix(vecStats, mrcpp::mpi::comm_wrk);
         // overall stats
         for (int i = 0; i < mrcpp::mpi::wrk_size; i++) {
             if (vecStats(0, i) > vMax) vMax = vecStats(0, i);

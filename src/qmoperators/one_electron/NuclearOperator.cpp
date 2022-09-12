@@ -134,7 +134,7 @@ void NuclearOperator::setupLocalPotential(NuclearFunction &f_loc, const Nuclei &
 
 void NuclearOperator::allreducePotential(double prec, mrcpp::CplxFunc &V_tot, mrcpp::CplxFunc &V_loc) const {
     // Add up local contributions into the grand master
-    mrcpp::mpi::reduce_function(prec, V_loc, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::reduce_function(prec, V_loc, mrcpp::mpi::comm_wrk);
     if (mrcpp::mpi::grand_master()) {
         // If numerically exact the grid is huge at this point
         if (mrcpp::mpi::numerically_exact) V_loc.crop(prec);
@@ -154,7 +154,7 @@ void NuclearOperator::allreducePotential(double prec, mrcpp::CplxFunc &V_tot, mr
         mrcpp::mpi::share_function(V_tot, 0, tag, mrcpp::mpi::comm_share);
     } else {
         // MPI grand master distributes to all ranks
-        mrcpp::mpi::broadcast_function(V_loc, mrcpp::mpi::comm_orb);
+        mrcpp::mpi::broadcast_function(V_loc, mrcpp::mpi::comm_wrk);
         // All MPI ranks copies the function into final memory
         mrcpp::copy_grid(V_tot.real(), V_loc.real());
         mrcpp::copy_func(V_tot.real(), V_loc.real());

@@ -86,8 +86,8 @@ void KAIN::setupLinearSystem() {
     }
 
     for (int i = 0; i < nOrbitals; i++) {
-        mrcpp::mpi::allreduce_matrix(A_matrices[i], mrcpp::mpi::comm_orb);
-        mrcpp::mpi::allreduce_vector(b_vectors[i], mrcpp::mpi::comm_orb);
+        mrcpp::mpi::allreduce_matrix(A_matrices[i], mrcpp::mpi::comm_wrk);
+        mrcpp::mpi::allreduce_vector(b_vectors[i], mrcpp::mpi::comm_wrk);
     }
 
     // Fock matrix is treated as a whole using the Frobenius inner product

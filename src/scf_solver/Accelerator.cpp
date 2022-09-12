@@ -174,7 +174,7 @@ bool Accelerator::verifyOverlap(OrbitalVector &Phi) {
             }
         }
     }
-    mrcpp::mpi::allreduce_vector(out, mrcpp::mpi::comm_orb);
+    mrcpp::mpi::allreduce_vector(out, mrcpp::mpi::comm_wrk);
 
     return (out.sum() < 1) ? true : false;
 }

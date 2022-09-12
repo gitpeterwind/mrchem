@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     if (scf_out["success"]) {
         for (auto &i : rsp_inp.items()) rsp_out[i.key()] = driver::rsp::run(i.value(), mol);
     }
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     json json_out;
     // Name and version of the output schema
     json_out["schema_name"] = "mrchem_output";

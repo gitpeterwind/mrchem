@@ -159,7 +159,7 @@ void initial_guess::gto::project_mo(OrbitalVector &Phi, double prec, const std::
         o_txt << std::setw(w3) << print_utils::dbl_to_str(Phi[i].norm(), pprec, true);
         print_utils::qmfunction(2, o_txt.str(), Phi[i], t_i);
     }
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     mrcpp::print::separator(2, '-');
     mrcpp::print::time(1, "Reading AO basis", t1);
     mrcpp::print::time(1, "Reading MO matrix", t2);
@@ -238,7 +238,7 @@ void initial_guess::gto::project_ao(OrbitalVector &Phi, double prec, const Nucle
             print_utils::qmfunction(2, o_txt.str(), Phi.back(), t_i);
         }
     }
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     timer.stop();
     mrcpp::print::footer(2, timer, 2);
 }

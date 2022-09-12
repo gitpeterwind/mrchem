@@ -129,7 +129,7 @@ bool initial_guess::cube::project_mo(OrbitalVector &Phi, double prec, const std:
             print_utils::qmfunction(1, o_txt.str(), Phi[i], t_i);
         }
     }
-    mrcpp::mpi::barrier(mrcpp::mpi::comm_orb);
+    mrcpp::mpi::barrier(mrcpp::mpi::comm_wrk);
     mrcpp::print::footer(1, t_tot, 2);
     return success;
 }
