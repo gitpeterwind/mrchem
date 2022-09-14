@@ -481,7 +481,6 @@ OrbitalChunk orbital::get_my_chunk(OrbitalVector &Phi) {
     for (int i = 0; i < Phi.size(); i++) {
         if (mrcpp::mpi::my_orb(i)) chunk.push_back(std::make_tuple(i, Phi[i]));
     }
-    std::cout << " chunk " << chunk.size() << " " << Phi.size() << std::endl;
     return chunk;
 }
 
@@ -489,16 +488,12 @@ OrbitalChunk orbital::get_my_chunk(OrbitalVector &Phi) {
 void orbital::orthogonalize(double prec, OrbitalVector &Phi, OrbitalVector &Psi) {
     // Get all output orbitals belonging to this MPI
     OrbitalChunk myPhi = orbital::get_my_chunk(Phi);
-    std::cout << " inortho " << Phi.size() << "! " << myPhi.size() << std::endl;
     // Orthogonalize MY orbitals with ALL input orbitals
     OrbitalIterator iter(Psi, false);
     while (iter.next()) {
-        std::cout << "iter  inortho " << std::endl;
         for (int i = 0; i < iter.get_size(); i++) {
-            std::cout << " i inortho " << i << std::endl;
             Orbital &psi_i = iter.orbital(i);
             for (auto &j : myPhi) {
-                std::cout << " j inortho " << i << std::endl;
                 Orbital &phi_j = std::get<1>(j);
                 orbital::orthogonalize(prec / Psi.size(), phi_j, psi_i);
             }

@@ -52,9 +52,7 @@ void CoulombPotentialD1::setupGlobalDensity(double prec) {
     Density &rho = this->density;
 
     Timer timer;
-    std::cout<<mrcpp::mpi::wrk_rank<<" CoulombPotentialD1::setupGlobalDensity start "<<std::endl;
     density::compute(prec, rho, Phi, DensityType::Total);
-    std::cout<<mrcpp::mpi::wrk_rank<<" CoulombPotentialD1::setupGlobalDensity done "<<std::endl;
     print_utils::qmfunction(3, "Compute global density", rho, timer);
 }
 

@@ -83,6 +83,7 @@ TEST_CASE("QMFunction", "[qmfunction]") {
             REQUIRE(&func_2.real() != &func_1.real());
             REQUIRE(&func_2.imag() == &func_1.imag());
         }
+#ifdef MRCHEM_HAS_MPI
         SECTION("deep copy to shared") {
             mrcpp::CplxFunc func_2(true);
             mrcpp::cplxfunc::deep_copy(func_2, func_1);
@@ -90,8 +91,10 @@ TEST_CASE("QMFunction", "[qmfunction]") {
             REQUIRE(&func_2.real() != &func_1.real());
             REQUIRE(&func_2.imag() == &func_1.imag());
         }
+#endif
     }
 
+#ifdef MRCHEM_HAS_MPI
     SECTION("copy shared function") {
         mrcpp::CplxFunc func_1(true);
         mrcpp::cplxfunc::project(func_1, f, NUMBER::Real, prec);
@@ -140,6 +143,7 @@ TEST_CASE("QMFunction", "[qmfunction]") {
             REQUIRE(func_2.integrate().imag() == Approx(func_1.integrate().imag()));
         }
     }
+#endif
 
     SECTION("rescale non-shared function") {
         mrcpp::CplxFunc func(false);
@@ -172,6 +176,7 @@ TEST_CASE("QMFunction", "[qmfunction]") {
             REQUIRE(func.imag().integrate() == Approx(im * f_int + re * g_int));
         }
     }
+#ifdef MRCHEM_HAS_MPI
     SECTION("rescale shared function") {
         mrcpp::CplxFunc func(true);
         mrcpp::cplxfunc::project(func, g, NUMBER::Real, prec);
@@ -241,6 +246,7 @@ TEST_CASE("QMFunction", "[qmfunction]") {
             }
         }
     }
+#endif
 
     SECTION("multiply non-shared function") {
         mrcpp::CplxFunc func_1(false);
@@ -253,14 +259,17 @@ TEST_CASE("QMFunction", "[qmfunction]") {
             REQUIRE(func_2.integrate().real() == Approx(func_1.squaredNorm()));
             REQUIRE(func_2.integrate().imag() == Approx(0.0));
         }
+#ifdef MRCHEM_HAS_MPI
         SECTION("into shared function") {
             mrcpp::CplxFunc func_2(true);
             mrcpp::cplxfunc::multiply(func_2, func_1, func_1.dagger(), -1.0);
             REQUIRE(func_2.integrate().real() == Approx(func_1.squaredNorm()));
             REQUIRE(func_2.integrate().imag() == Approx(0.0));
         }
+#endif
     }
 
+#ifdef MRCHEM_HAS_MPI
     SECTION("multiply shared function") {
         mrcpp::CplxFunc func_1(true);
         mrcpp::cplxfunc::project(func_1, f, NUMBER::Real, prec);
@@ -279,6 +288,7 @@ TEST_CASE("QMFunction", "[qmfunction]") {
             REQUIRE(func_2.integrate().imag() == Approx(0.0));
         }
     }
+#endif
 }
 
 } // namespace qmfunction_tests
