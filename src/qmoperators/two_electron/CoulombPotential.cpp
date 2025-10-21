@@ -86,11 +86,15 @@ void CoulombPotential::setup(double prec) {
     } else {
         // Keep each local contribution a bit
         // more precise than strictly necessary
-        setupLocalDensity(0.1 * prec);
+ std::cout<<" setupLocalDensity "<<std::endl;
+ setupLocalDensity(0.1 * prec);
+ std::cout<<" setupLocalPotential "<<std::endl;
+ setupLocalDensity(0.1 * prec);
         mrcpp::CompFunction<3> V = setupLocalPotential(0.1 * prec);
+ std::cout<<"allreducePotential  "<<std::endl;
         allreducePotential(0.1 * prec, V);
     }
-    if (plevel == 2) print_utils::qmfunction(2, "Coulomb operator", *this, timer);
+    if (plevel == 3) print_utils::qmfunction(2, "Coulomb operator", *this, timer);
     mrcpp::print::footer(3, timer, 2);
 }
 

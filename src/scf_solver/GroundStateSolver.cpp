@@ -278,28 +278,39 @@ json GroundStateSolver::optimize(Molecule &mol, FockBuilder &F) {
         o_header << "SCF cycle " << nIter;
         mrcpp::print::header(1, o_header.str(), 0, '#');
         mrcpp::print::separator(2, ' ', 1);
+        std::cout<<"before crop "<<Phi_n.getNNodes()<<std::endl;
+        Phi_n.crop(this->orbPrec[0], false);
+        std::cout<<"after normal crop "<<Phi_n.getNNodes()<<std::endl;
+          Phi_n.crop(this->orbPrec[0], true);
+        std::cout<<"after hard crop "<<Phi_n.getNNodes()<<std::endl;
 
         // Initialize SCF cycle
         Timer t_scf;
         double orb_prec = adjustPrecision(err_o);
         double helm_prec = getHelmholtzPrec();
+        std::cout<<"after getHelmholtzPrec() and adjustPrecision "<<std::endl;
         if (nIter < 2) {
             if (F.getReactionOperator() != nullptr) F.getReactionOperator()->updateMOResidual(err_t);
             F.setup(orb_prec);
         }
-
+        std::cout<<"after F.setup "<<std::endl;
         // Init Helmholtz operator
         HelmholtzVector H(helm_prec, F_mat.real().diagonal());
+        std::cout<<"after H(helm_prec, F_mat.real().diagonal()) "<<std::endl;
         ComplexMatrix L_mat = H.getLambdaMatrix();
+        std::cout<<"after L_mat "<<std::endl;
 
         // Apply Helmholtz operator
         OrbitalVector Psi = F.buildHelmholtzArgument(orb_prec, Phi_n, F_mat, L_mat);
+        std::cout<<"after F.buildHelmholtzArgument "<<std::endl;
         OrbitalVector Phi_np1 = H(Psi);
+        std::cout<<"after H(Psi) "<<std::endl;
         Psi.clear();
         F.clear();
 
         // Orthonormalize
         orbital::orthonormalize(orb_prec, Phi_np1, F_mat);
+         std::cout<<"after orthonormalize "<<std::endl;
 
         // Compute orbital updates
         OrbitalVector dPhi_n = orbital::add(1.0, Phi_np1, -1.0, Phi_n);

@@ -90,6 +90,7 @@ void FockBuilder::setup(double prec) {
     this->prec = prec;
     if (this->mom != nullptr) this->momentum().setup(prec);
     this->potential().setup(prec);
+    std::cout<<"After potential().setup "<<std::endl;
     this->perturbation().setup(prec);
 
     if (isZora()) {

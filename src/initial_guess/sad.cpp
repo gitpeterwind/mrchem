@@ -264,15 +264,21 @@ void initial_guess::sad::project_atomic_densities(double prec, Density &rho_tot,
 
         Density rho_k = initial_guess::gto::project_density(prec, nucs[k], o_bas.str(), o_dens.str(), screen);
         rho_loc.add(1.0, rho_k);
+        std::cout<<" sad crop "<<std::endl;
         rho_loc.crop(crop_prec);
+        std::cout<<" sad crop done"<<std::endl;
 
         charges[k] = nucs[k].getCharge();
         charges[N_nucs + k] = rho_k.integrate().real();
+        std::cout<<" sad charges done "<<std::endl;
     }
     t_loc.stop();
     Timer t_com;
+    std::cout<<" sad allreduce_vector "<<std::endl;
     mrcpp::mpi::allreduce_vector(charges, mrcpp::mpi::comm_wrk);
+    std::cout<<" sad allreduce_vector done "<<std::endl;
     density::allreduce_density(prec, rho_tot, rho_loc);
+    std::cout<<" sad allreduce_density done "<<std::endl;
     t_com.stop();
 
     for (int k = 0; k < N_nucs; k++) {

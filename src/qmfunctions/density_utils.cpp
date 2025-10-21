@@ -34,9 +34,11 @@
 #include "density_utils.h"
 #include "orbital_utils.h"
 #include <fstream>
-
+#include "/home/peter/mrcpp/installdir/include/MRCPP/trees/MWNode.h"
 using mrcpp::FunctionTree;
 using mrcpp::FunctionTreeVector;
+using mrcpp::MWNode;
+using mrcpp::FunctionNode;
 using mrcpp::Printer;
 using mrcpp::Timer;
 
@@ -80,8 +82,19 @@ Density density::compute(double prec, Orbital phi, DensityType spin) {
     double occ = density::compute_occupation(phi, spin);
     if (std::abs(occ) < mrcpp::MachineZero) return Density(false);
     Density rho(false);
+    mrcpp::NodeIndex<3> idx(1,{1,1,7});
+    std::cout<<"before copygrid in density_utils"<<rho.getNNodes()<<" phi "<<phi.getNNodes()<<std::endl;
     mrcpp::copy_grid(rho, phi);
+    std::cout<<"after copygrid in density_utils"<<rho.getNNodes()<<" phi "<<phi.getNNodes()<<std::endl;
+    mrcpp::MWNode<3> *node = phi.CompD[0]->findNode(idx);
+    if(node!=nullptr)std::cout<<"density phi"<<node->getSquareNorm()<<" "<<node->getWaveletNorm()<<std::endl;
+    else std::cout<<"density phi_i node does not exist"<<std::endl;
+    mrcpp::MWNode<3> *rhonode = rho.CompD[0]->findNode(idx);
+    if(rhonode!=nullptr)std::cout<<"density rho"<<rhonode->getSquareNorm()<<" "<<rhonode->getWaveletNorm()<<std::endl;
+    else std::cout<<"density rhophi node does not exist"<<std::endl;
     mrcpp::multiply(prec, rho, occ, phi, phi, -1, false, false, true); // the last "true" means use complex conjugate of the first phi
+    // mrcpp::multiply(prec, rho, occ, phi, phi, -1, true, false, true); // the last "true" means use complex conjugate of the first phi
+    std::cout<<"after multiply "<<rho.getNNodes()<<std::endl;
 
     return rho;
 }
@@ -132,10 +145,19 @@ void density::compute_local(double prec, Density &rho, OrbitalVector &Phi, Densi
 
     for (auto &phi_i : Phi) {
         if (mrcpp::mpi::my_func(phi_i)) {
+            std::cout<<" phi_i "<<phi_i.getNNodes()<<std::endl;
+            mrcpp::NodeIndex<3> idx(1,{1,1,7});
+
+            mrcpp::MWNode<3> *node = phi_i.CompD[0]->findNode(idx);
+            if(node!=nullptr)std::cout<<"density phi_i"<<node->getSquareNorm()<<" "<<node->getWaveletNorm()<<std::endl;
+            else std::cout<<"density phi_i node does not exist"<<std::endl;
             Density rho_i = density::compute(prec, phi_i, spin);
+            std::cout<<"density "<<rho_i.getNNodes()<<" phi_i "<<phi_i.getNNodes()<<std::endl;
             rho.add(1.0, rho_i); // Extends to union grid
+            std::cout<<"rhodensity "<<rho.getNNodes()<<" phi_i "<<phi_i.getNNodes()<<std::endl;
             rho.crop(abs_prec);  // Truncates to given precision
-        }
+            std::cout<<"rhodensity "<<rho.getNNodes()<<" phi_i "<<phi_i.getNNodes()<<std::endl;
+       }
     }
 }
 
@@ -222,15 +244,19 @@ void density::allreduce_density(double prec, Density &rho_tot, Density &rho_loc)
     // crop the resulting density tree to the desired precision
     double part_prec = (mrcpp::mpi::numerically_exact) ? -1.0 : prec;
     // Add up local contributions into the grand master
+    std::cout<<" allreduce_density reduce_function"<<std::endl;
     mrcpp::mpi::reduce_function(part_prec, rho_loc, mrcpp::mpi::comm_wrk);
     if (mrcpp::mpi::grand_master()) {
         // If numerically exact the grid is huge at this point
-        if (mrcpp::mpi::numerically_exact) rho_loc.crop(prec);
+    std::cout<<" allreduce_density rho_loc.crop"<<std::endl;
+       if (mrcpp::mpi::numerically_exact) rho_loc.crop(prec);
+    std::cout<<" allreduce_density rho_loc.crop done"<<std::endl;
     }
 
     if (not rho_tot.hasReal()) rho_tot.alloc(1);
 
     if (rho_tot.isShared()) {
+    std::cout<<" allreduce_density isShared()"<<std::endl;
         int tag = 2002;
         if (mrcpp::mpi::share_master()) {
             // MPI grand master distributes to shared masters
@@ -245,8 +271,11 @@ void density::allreduce_density(double prec, Density &rho_tot, Density &rho_loc)
         // MPI grand master distributes to all ranks
         mrcpp::mpi::broadcast_function(rho_loc, mrcpp::mpi::comm_wrk);
         // All MPI ranks copies the function into final memory
-        mrcpp::copy_grid(rho_tot.real(), rho_loc.real());
-        mrcpp::copy_func(rho_tot.real(), rho_loc.real());
+     std::cout<<" allreduce_densitycopy_grid"<<std::endl;
+       mrcpp::copy_grid(rho_tot.real(), rho_loc.real());
+      std::cout<<" allreduce_densitycopy_func"<<std::endl;
+       mrcpp::copy_func(rho_tot.real(), rho_loc.real());
+      std::cout<<" allreduce_densitycopy_func done"<<std::endl;
     }
 }
 
