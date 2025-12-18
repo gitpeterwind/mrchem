@@ -31,6 +31,7 @@
 #include "qmoperators/one_electron/NuclearOperator.h"
 #include "qmoperators/qmoperator_utils.h"
 #include "qmoperators/two_electron/GenericTwoOrbitalsOperator.h"
+#include "qmoperators/two_electron/two_electron_utils.h"
 
 namespace mrchem {
 
@@ -68,27 +69,7 @@ void ExternalSolver::set_one_body_integrals(OrbitalVector &Phi, MomentumOperator
 }
 
 void ExternalSolver::set_two_body_integrals(OrbitalVector &Phi, GenericTwoOrbitalsOperator &g) {
-    int n_orb = Phi.size();
-    this->two_body_integrals = std::make_shared<ComplexTensorR4>(n_orb, n_orb, n_orb, n_orb);
-    this->two_body_integrals->setZero();
-    std::cout << "two body integral size: " << this->two_body_integrals->dimensions() << std::endl;
-    // TODO: use 8-fold symmetry
-    for (int j = 0; j < n_orb; j++) {
-        for (int l = 0; l < n_orb; l++) {
-            g.set_pair(j, l);
-            for (int k = 0; k < n_orb; k++) {
-                // calculate |g_jl|Phi_k>
-                // Orbital tmp_k = Phi[k].paramCopy();
-                // mrcpp::cplxfunc::multiply(tmp_i, Phi[i].dagger(), Vjl, this->prec, true, true);
-                Orbital tmp_k = g.apply(Phi[k]);
-                for (int i = 0; i < n_orb; i++) {
-                    // calculate (ij|kl) = <Phi_i|V_jl|Phi_k>
-                    // BUG: add factor 4pi??
-                    (*this->two_body_integrals)(i, j, k, l) = mrcpp::dot(Phi[i], tmp_k);
-                }
-            }
-        }
-    }
+    this->two_body_integrals = std::make_shared<ComplexTensorR4>(calc_2elintegrals(prec, Phi));
 }
 
 } // namespace mrchem
