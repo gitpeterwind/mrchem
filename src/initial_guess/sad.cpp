@@ -113,7 +113,6 @@ bool initial_guess::sad::setup(OrbitalVector &Phi, double prec, double screen, c
         // Compute Coulomb density
         t_lap.start();
         Density &rho_j = J.getDensity();
-        std::cout << "initial_guess::sad::setup -- Projecting Coulomb density start" << std::endl;
         initial_guess::sad::project_atomic_densities(prec, rho_j, nucs, screen);
 
     // Compute XC density
@@ -123,8 +122,8 @@ bool initial_guess::sad::setup(OrbitalVector &Phi, double prec, double screen, c
 
         // Project AO basis of hydrogen functions
         t_lap.start();
-        OrbitalVector Psi; 
-        initial_guess::core::project_ao(Psi, prec, nucs, zeta, n_components); 
+        OrbitalVector Psi;
+        initial_guess::core::project_ao(Psi, prec, nucs, zeta, n_components);
         if (plevel == 1) mrcpp::print::time(1, "Projecting Hydrogen AOs", t_lap);
         if (plevel == 2) mrcpp::print::header(2, "Building Fock operator");
         t_lap.start();
@@ -137,15 +136,15 @@ bool initial_guess::sad::setup(OrbitalVector &Phi, double prec, double screen, c
         mrcpp::print::header(2, "Diagonalizing Fock matrix");
         ComplexMatrix U = initial_guess::core::diagonalize(Psi, p, V);
 
-        // std::cout << "sad::setup Psi norm (2nd argument)=" << Psi[0].norm() << " Phi norm (1st argument)=" << Phi[0].norm() << std::endl;
-
-        // Rotate orbitals and fill electrons by Aufbau 
+        // Rotate orbitals and fill electrons by Aufbau
         t_lap.start();
-        auto Phi_a = orbital::disjoin(Phi, SPIN::Alpha); 
+        auto Phi_a = orbital::disjoin(Phi, SPIN::Alpha);
         auto Phi_b = orbital::disjoin(Phi, SPIN::Beta);
-        initial_guess::core::rotate_orbitals(Phi, prec, U, Psi); 
+
+        initial_guess::core::rotate_orbitals(Phi, prec, U, Psi);
         initial_guess::core::rotate_orbitals(Phi_a, prec, U, Psi);
         initial_guess::core::rotate_orbitals(Phi_b, prec, U, Psi);
+
         //Alpha and Beta electrons are Kramers partners, and this
         //needs to be reflected in the geometry of the spinors
         //Therefore we swap the beta guess over to the second component
@@ -160,11 +159,12 @@ bool initial_guess::sad::setup(OrbitalVector &Phi, double prec, double screen, c
                 std::swap(phi.func_ptr->data.Nchunks[0], phi.func_ptr->data.Nchunks[1]);
                 //multiplying the prefactor with -i σ_y
                 std::swap(phi.func_ptr->data.c1[0], phi.func_ptr->data.c1[1]);
-                phi.func_ptr->data.c1[1] *= -1.0;
-            }
+                phi.setNcomp(2); // mark that there are two active components now
+             }
         }
         Phi = orbital::adjoin(Phi, Phi_a);
         Phi = orbital::adjoin(Phi, Phi_b);
+        mrcpp::initComp(Phi, n_components);
         p.clear();
         V.clear();
 

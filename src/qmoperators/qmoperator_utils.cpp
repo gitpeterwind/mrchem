@@ -41,7 +41,7 @@ namespace mrchem {
 namespace qmoperator {
 //Non-relativistic
 ComplexMatrix calc_kinetic_matrix_component(int d, MomentumOperator &p, OrbitalVector &bra, OrbitalVector &ket);
-//scalar relativistic 
+//scalar relativistic
 ComplexMatrix calc_kinetic_matrix_component(int d, MomentumOperator &p, RankZeroOperator &V, OrbitalVector &bra, OrbitalVector &ket);
 //spinorial relativistic
 ComplexMatrix calc_kinetic_matrix_component(MomentumOperator &p, RankZeroOperator &V, OrbitalVector &bra, OrbitalVector &ket);
@@ -67,19 +67,19 @@ double qmoperator::calc_kinetic_trace(MomentumOperator &p, OrbitalVector &Phi) {
     return 0.5 * eta.dot(norms);
 }
 
-/** @brief Compute the trace over the Hilbert space (not the spin space) of the kinetic matrix 
- * 
+/** @brief Compute the trace over the Hilbert space (not the spin space) of the kinetic matrix
+ *
  */
 ComplexDouble qmoperator::calc_kinetic_trace(MomentumOperator &p, RankZeroOperator &V, OrbitalVector &Phi, bool spinorial) {
     ComplexDouble out = {0.0, 0.0};
     if (not spinorial){ //scalar relativistic case
         // In this case we can simply treat all directions independently, because the
         // spin component is neglected
-        {   
+        {
             OrbitalVector dPhi = p[0](Phi, 0);
             out += V.trace(dPhi);
         }
-        {   
+        {
             OrbitalVector dPhi = p[1](Phi, 0);
             out += V.trace(dPhi);
         }
@@ -87,7 +87,7 @@ ComplexDouble qmoperator::calc_kinetic_trace(MomentumOperator &p, RankZeroOperat
             OrbitalVector dPhi = p[2](Phi, 0);
             out += V.trace(dPhi);
         }
-    } else { //spinorial relativistic case 
+    } else { //spinorial relativistic case
         //in this case, the operator cannot be separated into its 3 directional components,
         //because (σ·p)χ(σ·p) ≠ (σ_x·p_x)χ(σ_x·p_x) + (σ_y·p_y)χ(σ_y·p_y) + (σ_z·p_z)χ(σ_z·p_z)
         //and so we need to compute the (σ·p) applied on Phi first.
@@ -112,7 +112,7 @@ ComplexDouble qmoperator::calc_kinetic_trace(MomentumOperator &p, RankZeroOperat
  * operator is applied both to the left and right, thus taking advantage
  * of symmetry and getting away with only first-derivative operators.
  */
-ComplexMatrix qmoperator::calc_kinetic_matrix(MomentumOperator &p, OrbitalVector &bra, OrbitalVector &ket) { 
+ComplexMatrix qmoperator::calc_kinetic_matrix(MomentumOperator &p, OrbitalVector &bra, OrbitalVector &ket) {
     ComplexMatrix T_x = qmoperator::calc_kinetic_matrix_component(0, p, bra, ket);
     ComplexMatrix T_y = qmoperator::calc_kinetic_matrix_component(1, p, bra, ket);
     ComplexMatrix T_z = qmoperator::calc_kinetic_matrix_component(2, p, bra, ket);
@@ -129,10 +129,10 @@ ComplexMatrix qmoperator::calc_kinetic_matrix(MomentumOperator &p, OrbitalVector
  * of symmetry and getting away with only first-derivative operators.
  */
 ComplexMatrix qmoperator::calc_kinetic_matrix(MomentumOperator &p, RankZeroOperator &V, OrbitalVector &bra, OrbitalVector &ket, bool spinorial) {
-    if (spinorial and (bra[0].Ncomp() < 2 or ket[0].Ncomp() < 2)) MSG_WARN("Spin-orbit interaction enabled with scalar functions, will probably create issues");
+    if (spinorial and (bra.getNcomp() < 2 or ket.getNcomp() < 2)) MSG_WARN("Spin-orbit interaction enabled with scalar functions, will probably create issues");
     if (not spinorial){
         //scalar case
-        ComplexMatrix T_x = qmoperator::calc_kinetic_matrix_component(0, p, V, bra, ket); 
+        ComplexMatrix T_x = qmoperator::calc_kinetic_matrix_component(0, p, V, bra, ket);
         ComplexMatrix T_y = qmoperator::calc_kinetic_matrix_component(1, p, V, bra, ket);
         ComplexMatrix T_z = qmoperator::calc_kinetic_matrix_component(2, p, V, bra, ket);
         return T_x + T_y + T_z;
@@ -154,16 +154,11 @@ ComplexMatrix qmoperator::calc_kinetic_matrix_component(int d, MomentumOperator 
     int Ni = bra.size();
     int Nj = ket.size();
     ComplexMatrix T = ComplexMatrix::Zero(Ni, Nj);
-    // MSG_INFO("calc kin mat comp start braket true=" << (&bra == &ket));
-
     int nNodes = 0, sNodes = 0;
     if (&bra == &ket) {
         OrbitalVector dKet = p[d](ket);
-        // MSG_INFO("1");
         nNodes += orbital::get_n_nodes(dKet);
-        // MSG_INFO("2");
         sNodes += orbital::get_size_nodes(dKet);
-        // MSG_INFO("3");
         T = mrcpp::calc_overlap_matrix(dKet);
     } else {
         OrbitalVector dBra = p[d](bra);
@@ -173,10 +168,11 @@ ComplexMatrix qmoperator::calc_kinetic_matrix_component(int d, MomentumOperator 
         sNodes += orbital::get_size_nodes(dBra);
         sNodes += orbital::get_size_nodes(dKet);
         T = mrcpp::calc_overlap_matrix(dBra, dKet);
-    }
+   }
     if (d == 0) mrcpp::print::tree(2, "<i|p[x]p[x]|j>", nNodes, sNodes, timer.elapsed());
     if (d == 1) mrcpp::print::tree(2, "<i|p[y]p[y]|j>", nNodes, sNodes, timer.elapsed());
     if (d == 2) mrcpp::print::tree(2, "<i|p[z]p[z]|j>", nNodes, sNodes, timer.elapsed());
+
     return 0.5 * T;
 }
 
@@ -223,11 +219,11 @@ ComplexMatrix qmoperator::calc_kinetic_matrix_component(int d, MomentumOperator 
     int nNodes = 0, sNodes = 0;
     if (&bra == &ket) {
         // scalar case, so no need to apply pauli matrices (second argument, index=0 means applying the identity matrix)
-        OrbitalVector dKet = p[d](ket, 0); 
+        OrbitalVector dKet = p[d](ket, 0);
 
         nNodes += orbital::get_n_nodes(dKet);
         sNodes += orbital::get_size_nodes(dKet);
-        T = V(dKet, dKet); 
+        T = V(dKet, dKet);
     } else {
         // scalar case, so no need to apply pauli matrices (second argument, index=0 means applying the identity matrix)
         OrbitalVector dBra = p[d](bra, 0);
@@ -244,20 +240,19 @@ ComplexMatrix qmoperator::calc_kinetic_matrix_component(int d, MomentumOperator 
     return 0.5 * T;
 }
 
-/** @brief Spinorial computation of the kinetic matrix 
+/** @brief Spinorial computation of the kinetic matrix
 * The directions can no longer be computed seperately, due to the kinetic operator becoming σ·p
 */
 ComplexMatrix qmoperator::calc_kinetic_matrix_component( MomentumOperator &p, RankZeroOperator &V, OrbitalVector &bra, OrbitalVector &ket) {
     Timer timer;
     int Ni = bra.size();
     int Nj = ket.size();
-    ComplexMatrix T = ComplexMatrix::Zero(Ni, Nj);
-    // MSG_INFO("calc kin mat comp start d=" << d << " Ni=" << Ni << " Nj=" << Nj);
 
-    // MSG_INFO("spinorial done");
+    ComplexMatrix T = ComplexMatrix::Zero(Ni, Nj);
+
     int nNodes = 0, sNodes = 0;
     if (&bra == &ket) {
-        // MSG_INFO("bra ket same");
+        //MSG_INFO("bra ket same");
         OrbitalVector dKet_x = p[0](ket, 1); //(σ_x·p_x)|ket>
         OrbitalVector dKet_y = p[1](ket, 2); //(σ_y·p_y)|ket>
         OrbitalVector dKet_z = p[2](ket, 3); //(σ_z·p_z)|ket>
@@ -273,9 +268,9 @@ ComplexMatrix qmoperator::calc_kinetic_matrix_component( MomentumOperator &p, Ra
         // MSG_INFO("test")
         // MSG_INFO("bk same V applied tut "  << T(0,0) << " "<< T(0,1) << " " << d);
         // MSG_INFO("bk same V applied tut "  << T(1,0) << " "<< T(1,1));
-        
+
     } else {
-        // MSG_INFO("bra no ket");
+        //MSG_INFO("bra no ket");
         OrbitalVector dBra_x = p[0](bra, 1); //(σ_x·p_x)|ket>
         OrbitalVector dBra_y = p[1](bra, 2); //(σ_y·p_y)|ket>
         OrbitalVector dBra_z = p[2](bra, 3); //(σ_z·p_z)|ket>
@@ -294,16 +289,16 @@ ComplexMatrix qmoperator::calc_kinetic_matrix_component( MomentumOperator &p, Ra
         // // mrcpp::add(dBra, ones, p[2](bra, 2)); //(σ_y·p_y)|ket>
         // // mrcpp::add(dBra, ones, p[3](bra, 3)); //(σ_z·p_z)|ket>
         // OrbitalVector dBra_y = p[2](bra, 2); //(σ_y·p_y)|ket>
-        // mrcpp::add(dBra, ones, dBra_y); 
+        // mrcpp::add(dBra, ones, dBra_y);
         // OrbitalVector dBra_z = p[3](bra, 3); //(σ_z·p_z)|ket>
         // mrcpp::add(dBra, ones, dBra_z);
-        
+
         // ones = ComplexVector::Ones(Nj, 1);
         // OrbitalVector dKet = p[1](ket, 1); //(σ_x·p_x)|ket>, also holding the sum of all three directions
         // // mrcpp::add(dKet, ones, p[2](ket, 2)); //(σ_y·p_y)|ket>
         // // mrcpp::add(dKet, ones, p[3](ket, 3)); //(σ_z·p_z)|ket>
         // OrbitalVector dKet_y = p[2](ket, 2); //(σ_y·p_y)|ket>
-        // mrcpp::add(dKet, ones, dKet_y); 
+        // mrcpp::add(dKet, ones, dKet_y);
         // OrbitalVector dKet_z = p[3](ket, 3); //(σ_z·p_z)|ket>
         // mrcpp::add(dKet, ones, dKet_z);
         // MSG_INFO("bk diff ket done");

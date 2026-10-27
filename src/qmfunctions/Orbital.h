@@ -58,10 +58,10 @@ namespace mrchem {
 class Orbital : public mrcpp::CompFunction<3> {
 public:
     Orbital() = default;
-    Orbital(SPIN::type spin, int n_comp = 1);
+    // Orbital(SPIN::type spin, int n_comp = 1);
     Orbital(const Orbital &orb);
     Orbital(const mrcpp::CompFunction<3> &orb);
-    Orbital(int spin, double occ, int rank = -1, int n_comp = 1);
+    Orbital(SPIN::type spin, double occ = -1, int rank = -1, int n_comp = 1);
     Orbital dagger() const;
 
     // Orbital apply_alpha_matrix(int alpha, bool conjugate = false) const; //redundant, apply_Pauli can be used instead

@@ -35,14 +35,15 @@ namespace mrchem {
  *
  * Initializes with NULL tree pointers.
  */
-Orbital::Orbital(SPIN::type spin, int n_comp)
-        : mrcpp::CompFunction<3>(spin, n_comp) {
-    if (this->spin() < 0) INVALID_ARG_ABORT;
-    // d1 is used to store occupancy
-    if (this->spin() == SPIN::Paired) this->func_ptr->data.d1[0] = 2.0;
-    if (this->spin() == SPIN::Alpha) this->func_ptr->data.d1[0] = 1.0;
-    if (this->spin() == SPIN::Beta) this->func_ptr->data.d1[0] = 1.0;
-}
+// Orbital::Orbital(SPIN::type spin, int n_comp)
+//         : mrcpp::CompFunction<3>(spin) {
+//     if (this->spin() < 0) INVALID_ARG_ABORT;
+ //    // d1 is used to store occupancy
+//     if (this->spin() == SPIN::Paired) this->func_ptr->data.d1[0] = 2.0;
+//     if (this->spin() == SPIN::Alpha) this->func_ptr->data.d1[0] = 1.0;
+//     if (this->spin() == SPIN::Beta) this->func_ptr->data.d1[0] = 1.0;
+//     this->alloc(n_comp);
+// }
 
 /** @brief Constructor
  *
@@ -51,15 +52,18 @@ Orbital::Orbital(SPIN::type spin, int n_comp)
  * @param rank: position in vector if part of a vector
  *
  */
-Orbital::Orbital(int spin, double occ, int rank, int n_comp)
-        : mrcpp::CompFunction<3>(spin, n_comp) {
+Orbital::Orbital(SPIN::type spin, double occ, int rank, int n_comp)
+        : mrcpp::CompFunction<3>(spin) {
     if (this->spin() < 0) INVALID_ARG_ABORT;
-    if (this->occ() < 0) {
+    if (occ < 0) {
         // d1 is defined as occupancy
-        if (this->spin() == SPIN::Paired) this->func_ptr->data.d1[0] = 2.0;
-        if (this->spin() == SPIN::Alpha) this->func_ptr->data.d1[0] = 1.0;
-        if (this->spin() == SPIN::Beta) this->func_ptr->data.d1[0] = 1.0;
+        if (spin == SPIN::Paired) this->func_ptr->data.d1[0] = 2.0;
+        if (spin == SPIN::Alpha) this->func_ptr->data.d1[0] = 1.0;
+        if (spin == SPIN::Beta) this->func_ptr->data.d1[0] = 1.0;
+    } else {
+        this->func_ptr->data.d1[0] = occ;
     }
+    this->alloc(n_comp);
     this->func_ptr->rank = rank;
 }
 

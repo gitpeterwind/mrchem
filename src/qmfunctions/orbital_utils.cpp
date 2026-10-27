@@ -30,7 +30,7 @@
 #include <MRCPP/trees/FunctionNode.h>
 #include <MRCPP/utils/details.h>
 #include <MRCPP/utils/CompFunction.h>
-#include <MRCPP/utils/spinor_utils.h>
+//#include <MRCPP/utils/spinor_utils.h>
 
 #include "utils/RRMaximizer.h"
 #include "utils/math_utils.h"
@@ -302,7 +302,7 @@ OrbitalVector orbital::disjoin(OrbitalVector &Phi, int spin) {
     OrbitalVector out;
     OrbitalVector tmp;
     for (auto &Phi_i : Phi) {
-        Orbital i(Phi_i); 
+        Orbital i(Phi_i);
         if (i.spin() == spin) {
             if (i.getRank() % mrcpp::mpi::wrk_size != out.size() % mrcpp::mpi::wrk_size) {
                 // need to send orbital from owner to new owner
@@ -641,13 +641,13 @@ ComplexMatrix orbital::kramers_orthonormalize(double prec, OrbitalVector &Phi, C
     // number of represented electrons
     int N = Phi.size();
 
-    // Compute complete 2N x 2N overlap matrix 
-    ComplexMatrix S = mrcpp::calc_kramers_overlap_matrix(Phi, Phi); 
+    // Compute complete 2N x 2N overlap matrix
+    ComplexMatrix S = mrcpp::calc_kramers_overlap_matrix(Phi, Phi);
 
-    // Compute S^-1/2 
+    // Compute S^-1/2
     ComplexMatrix S_m12 = math_utils::hermitian_matrix_pow(S, -1.0 / 2.0);
 
-    // Isolate the upper left N x X block 
+    // Isolate the upper left N x X block
     ComplexMatrix S_restricted (N,N);
     for (int i=0; i < N; i++){
         for (int j=0; j < N; j++){
@@ -1073,7 +1073,7 @@ void orbital::saveOrbital(const std::string &file, const Orbital &orb, int text_
             else
                 orb.CompD[comp]->saveTree(fname.str());
         }
-    
+
         // writing complex tree
         if (orb.iscomplex()) {
             std::stringstream fname;

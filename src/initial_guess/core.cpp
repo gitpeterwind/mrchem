@@ -125,11 +125,10 @@ bool initial_guess::core::setup(OrbitalVector &Phi, double prec, const Nuclei &n
     // Rotate orbitals and fill electrons by Aufbau
     auto Phi_a = orbital::disjoin(Phi, SPIN::Alpha);
     auto Phi_b = orbital::disjoin(Phi, SPIN::Beta);
-
     initial_guess::core::rotate_orbitals(Phi, prec, U, Psi);
     initial_guess::core::rotate_orbitals(Phi_a, prec, U, Psi);
     initial_guess::core::rotate_orbitals(Phi_b, prec, U, Psi);
-    //Alpha and Beta electrons are Kramers partners, and this
+   //Alpha and Beta electrons are Kramers partners, and this
     //needs to be reflected in the geometry of the spinors
     //Therefore we swap the beta guess over to the second component
     //to emulate the time-reversal operator -iσ_y K0
@@ -219,17 +218,14 @@ void initial_guess::core::project_ao(OrbitalVector &Phi, double prec, const Nucl
 
             for (int m = 0; m < M; m++) { //loop over the magnetic quantum number
                 Timer t_i;
-                HydrogenFunction h_func(n, l, m, Z, R);
-                Phi.push_back(Orbital(SPIN::Paired, n_components));
-                Phi.back().setRank(Phi.size() - 1);
+                Phi.push_back(Orbital(SPIN::Paired, 2.0, Phi.size(), n_components));
                 if (mrcpp::mpi::my_func(Phi.back())) {
+                    HydrogenFunction h_func(n, l, m, Z, R);
                     //The AOs are all projected to the first component of Phi regardless of the number of components
                     //It is easier to distribute them among the components in rotate() than to create a
                     //degenerate guess (for 2C+) here that will be mixed during diagonalisation
-                    mrcpp::project(Phi.back(), h_func, prec, 1); 
-                    // Phi.back().alloc_comp(n_components, true);
+                    mrcpp::project(Phi.back(), h_func, prec);
                     if (std::abs(Phi.back().norm() - 1.0) > 0.01) MSG_WARN("AO not normalized!");
-                    MSG_INFO("Norm="<<std::abs(Phi.back().norm()));
                 }
 
                 std::stringstream o_txt;
@@ -243,6 +239,7 @@ void initial_guess::core::project_ao(OrbitalVector &Phi, double prec, const Nucl
             nShell++;
         }
     }
+    Phi.setNcomp(n_components);
     mrcpp::print::footer(2, t_tot, 2);
 }
 

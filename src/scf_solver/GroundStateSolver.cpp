@@ -37,7 +37,7 @@
 #include "qmoperators/two_electron/FockBuilder.h"
 #include "qmoperators/two_electron/ReactionOperator.h"
 
-#include <MRCPP/utils/spinor_utils.h> //debug, remove when done
+//#include <MRCPP/utils/spinor_utils.h> //debug, remove when done
 
 using mrcpp::Printer;
 using mrcpp::Timer;
@@ -294,7 +294,7 @@ json GroundStateSolver::optimize(Molecule &mol, FockBuilder &F) {
         // Init Helmholtz operator
         HelmholtzVector H(helm_prec, F_mat.real().diagonal());
         ComplexMatrix L_mat = H.getLambdaMatrix();
-        
+
         // Apply Helmholtz operator
         OrbitalVector Psi = F.buildHelmholtzArgument(orb_prec, Phi_n, F_mat, L_mat);
         OrbitalVector Phi_np1 = H(Psi);
@@ -310,11 +310,11 @@ json GroundStateSolver::optimize(Molecule &mol, FockBuilder &F) {
         //     Orbital kramphi;
         //     mrcpp::deep_copy(kramphi, Phi_np1[orbitale]);
         //     // Complex conjugate the copy of ket[j]
-        //     kramphi.conj(); //note: only changes a flag that will affect the dot product. Would be problematic if the rest of the time-reversal was imaginary, as it would be conjugated too during the dot. 
+        //     kramphi.conj(); //note: only changes a flag that will affect the dot product. Would be problematic if the rest of the time-reversal was imaginary, as it would be conjugated too during the dot.
         //     // apply σ_y (2C ONLY) to it
         //     mrcpp::apply_gamma(kramphi, 2); //σ_y
         //     //multiply by -i
-        //     ComplexDouble cplx_i = {0.0, 1.0}; 
+        //     ComplexDouble cplx_i = {0.0, 1.0};
         //     kramphi.func_ptr->data.c1[0] *= -cplx_i;
         //     kramphi.func_ptr->data.c1[1] *= -cplx_i;
         //     for (int sblam=0; sblam < Phi_np1.size(); sblam++){
@@ -482,11 +482,11 @@ bool GroundStateSolver::needDiagonalization(int nIter, bool converged) const {
     return diag;
 }
 
-/** 
+/**
  * @brief Determine new occupation vector according to MOM/IMOM procedure
  * @param Phi_n: orbitals of current iteration n.
  * @param Phi_mom: orbitals of last iteration n-1 (MOM) or first iteration (IMOM).
- * 
+ *
  * According to MOM/IMOM procedure the occupation numbers for the current iteration get
  * determined based on the overlap with the orbitals of an earlier iteration of the SCF procedure.
  */

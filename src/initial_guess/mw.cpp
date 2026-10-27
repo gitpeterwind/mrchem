@@ -137,7 +137,7 @@ bool initial_guess::mw::project_mo(OrbitalVector &Phi, double prec, const std::s
             }
             //determine the number of components to load
             //Useful if trying to load scalar orbitals into 2C spinors
-            int n_load = std::min(Phi[i].Ncomp(), phi_i.Ncomp()); 
+            int n_load = std::min(Phi[i].Ncomp(), phi_i.Ncomp());
             if (phi_i.isreal()) {
                 Phi[i].defreal();
                 for (int comp = 0; comp<Phi[i].Ncomp(); comp++) {
@@ -145,7 +145,7 @@ bool initial_guess::mw::project_mo(OrbitalVector &Phi, double prec, const std::s
                         // Refine to get accurate function values
                         mrcpp::refine_grid(phi_i.real(comp), 1);
                         mrcpp::project(prec, Phi[i].real(comp), phi_i.real(comp));
-                    } else Phi[i].alloc_comp(comp, true);
+                    } // else Phi[i].alloc_comp(comp, true);
                 }
             }
             if (phi_i.iscomplex()) {
@@ -156,7 +156,7 @@ bool initial_guess::mw::project_mo(OrbitalVector &Phi, double prec, const std::s
                         mrcpp::refine_grid(phi_i.complex(comp), 1);
                         iscomplex = true;
                         mrcpp::project(prec, Phi[i].complex(comp), phi_i.complex(comp));
-                    } else Phi[i].alloc_comp(comp, true);
+                    } // else Phi[i].alloc_comp(comp, true);
                 }
             }
             std::stringstream o_txt;

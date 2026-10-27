@@ -51,7 +51,7 @@ namespace mrchem {
 class Density final : public mrcpp::CompFunction<3> {
 public:
     explicit Density(bool share = false)
-            : mrcpp::CompFunction<3>(0, share, 1) {}
+            : mrcpp::CompFunction<3>(0, share) {}
     Density(const Density &dens) //copy constructor
             : mrcpp::CompFunction<3>(dens) {}
     Density(mrcpp::MultiResolutionAnalysis<3> &mra)
